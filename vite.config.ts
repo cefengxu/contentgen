@@ -66,7 +66,7 @@ export default defineConfig(({ mode }) => {
                   fs.writeFileSync(filePath, content, 'utf8');
 
                   // 生成后自动执行发布命令：wenyan publish -f /absolute/path/to/the/generated_xxx.md
-                  const cmd = `wenyan publish -f "${filePath}"`;
+                  const cmd = `wenyan publish -f ${filePath}`;
                   exec(cmd, (error, stdout, stderr) => {
                     if (error) {
                       console.error('[save-markdown-middleware] wenyan 命令执行失败:', error);
