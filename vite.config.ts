@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -63,6 +64,21 @@ export default defineConfig(({ mode }) => {
                   const filePath = path.join(outputDir, `${name}.md`);
 
                   fs.writeFileSync(filePath, content, 'utf8');
+
+                  // 生成后自动执行发布命令：wenyan publish -f /absolute/path/to/the/generated_xxx.md
+                  const cmd = `wenyan publish -f ${filePath}`;
+                  exec(cmd, (error, stdout, stderr) => {
+                    if (error) {
+                      console.error('[save-markdown-middleware] wenyan 命令执行失败:', error);
+                      if (stderr) {
+                        console.error('[save-markdown-middleware] wenyan stderr:', stderr);
+                      }
+                      return;
+                    }
+                    if (stdout) {
+                      console.log('[save-markdown-middleware] wenyan stdout:', stdout);
+                    }
+                  });
 
                   res.statusCode = 200;
                   res.setHeader('Content-Type', 'application/json');
