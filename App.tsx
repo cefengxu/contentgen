@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
 import { generateArticle } from './services/llm';
@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const [wechatAppSecret, setWechatAppSecret] = useState('');
   const [publishLoading, setPublishLoading] = useState(false);
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
+  const publishLoadingRef = useRef(false);
 
   const handleStartProcess = async () => {
     if (!keyword.trim()) return;
@@ -141,13 +142,18 @@ const App: React.FC = () => {
       return;
     }
     setPublishLoading(true);
+    publishLoadingRef.current = true;
     setPublishResult(null);
+    const abortCtrl = new AbortController();
+    const timeoutId = setTimeout(() => abortCtrl.abort(), 120000);
     try {
       const resp = await fetch('/api/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, WECHAT_APP_ID: wechatAppId.trim(), WECHAT_APP_SECRET: wechatAppSecret.trim() }),
+        signal: abortCtrl.signal,
       });
+      clearTimeout(timeoutId);
       const text = await resp.text();
       let data: { success: boolean; message: string; stdout?: string; stderr?: string };
       try {
@@ -157,11 +163,31 @@ const App: React.FC = () => {
       }
       setPublishResult(data);
     } catch (e: any) {
-      setPublishResult({ success: false, message: e?.message || '网络请求失败' });
+      const isAbort = e?.name === 'AbortError';
+      setPublishResult({
+        success: false,
+        message: isAbort
+          ? '发布请求超时（约 2 分钟）。若公众号草稿箱中已看到文章可忽略；否则请重试。'
+          : (e?.message || '网络请求失败'),
+      });
     } finally {
+      clearTimeout(timeoutId);
+      publishLoadingRef.current = false;
       setPublishLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!publishLoading) return;
+    const t = setTimeout(() => {
+      if (publishLoadingRef.current) {
+        publishLoadingRef.current = false;
+        setPublishLoading(false);
+        setPublishResult((prev) => prev ?? { success: false, message: '发布耗时较长，请到公众号草稿箱查看是否已收到文章；未收到可重试。' });
+      }
+    }, 125000);
+    return () => clearTimeout(t);
+  }, [publishLoading]);
 
   useEffect(() => {
     if (status !== AppStatus.COMPLETED) return;
