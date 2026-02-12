@@ -71,25 +71,56 @@ export default defineConfig(({ mode }) => {
                   if (parsed.WECHAT_APP_SECRET != null) env.WECHAT_APP_SECRET = String(parsed.WECHAT_APP_SECRET);
 
                   const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
-                  const isWin = process.platform === 'win32';
-                  const child = spawn(isWin ? 'cmd' : 'sh', [isWin ? '/c' : '-c', cmd], { env, cwd: __dirname, stdio: 'pipe' });
-                  let stdout = '';
-                  let stderr = '';
-                  child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
-                  child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
-                  child.on('error', (err) => {
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ success: false, message: err.message, stdout, stderr }));
-                  });
-                  child.on('close', (code, signal) => {
+                  console.log('[publish] 执行命令:', cmd);
+
+                  exec(cmd, {
+                    env,
+                    cwd: __dirname,
+                    timeout: 90000,        // 90 秒超时，自动 kill
+                    maxBuffer: 10 * 1024 * 1024,
+                  }, (error, stdout, stderr) => {
+                    const stdoutStr = stdout?.toString() || '';
+                    const stderrStr = stderr?.toString() || '';
+                    // wenyan-cli 可能上传成功但进程被超时 kill（退出码非 0）
+                    // 通过 stdout 中的关键词判断是否真正成功
+                    const looksSuccessful = stdoutStr.includes('草稿') || stdoutStr.includes('success') || stdoutStr.includes('draft');
+                    if (error) {
+                      const killed = (error as { killed?: boolean })?.killed;
+                      console.log('[publish] 命令结束, killed:', killed, 'code:', error.code);
+                      if (stdout) console.log('[publish] stdout:', stdoutStr);
+                      if (stderr) console.error('[publish] stderr:', stderrStr);
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      if (killed && looksSuccessful) {
+                        // 超时被 kill，但 stdout 表明已成功上传
+                        res.end(JSON.stringify({
+                          success: true,
+                          message: '已提交到公众号草稿箱（进程超时自动终止，但上传已完成）',
+                          stdout: stdoutStr || undefined,
+                          stderr: stderrStr || undefined,
+                        }));
+                      } else {
+                        res.end(JSON.stringify({
+                          success: false,
+                          message: killed
+                            ? '命令执行超时（90秒）。请检查公众号草稿箱确认是否已成功。'
+                            : (error.message || `执行退出码 ${error.code}`),
+                          stdout: stdoutStr || undefined,
+                          stderr: stderrStr || undefined,
+                        }));
+                      }
+                      return;
+                    }
+                    console.log('[publish] 命令执行成功');
+                    if (stdout) console.log('[publish] stdout:', stdoutStr);
+                    if (stderr) console.error('[publish] stderr:', stderrStr);
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify({
-                      success: code === 0,
-                      message: code === 0 ? '已提交到公众号草稿箱' : `执行退出码 ${code}`,
-                      stdout: stdout || undefined,
-                      stderr: stderr || undefined,
+                      success: true,
+                      message: '已提交到公众号草稿箱',
+                      stdout: stdoutStr || undefined,
+                      stderr: stderrStr || undefined,
                     }));
                   });
                 } catch (err: any) {
