@@ -330,28 +330,28 @@ const App: React.FC = () => {
         {article && status === AppStatus.COMPLETED && (
           <div className="animate-in fade-in duration-1000 slide-in-from-top-4">
             <ArticleDisplay content={article.content} sources={article.sources} />
-            <div className="mt-10 p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">发布到微信公众号</h3>
-              <p className="text-sm text-gray-500 mb-4">填写公众号配置后点击「确认发布到微信」，文章将上传至该公众号草稿箱（约 30 秒～1 分钟）。</p>
-              <div className="space-y-4 mb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10 max-w-4xl mx-auto mt-8 transition-all">
+              <h3 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-50 pb-4">发布到微信公众号</h3>
+              <p className="text-sm text-gray-500 mb-6">填写公众号配置后点击「确认发布到微信」，文章将上传至该公众号草稿箱。</p>
+              <div className="space-y-4 mb-6">
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">WECHAT_APP_ID</span>
+                  <span className="text-sm font-semibold text-gray-700 mb-1.5 block">WECHAT_APP_ID</span>
                   <input
                     type="text"
                     value={wechatAppId}
                     onChange={(e) => setWechatAppId(e.target.value)}
                     placeholder="公众号 AppID"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">WECHAT_APP_SECRET</span>
+                  <span className="text-sm font-semibold text-gray-700 mb-1.5 block">WECHAT_APP_SECRET</span>
                   <input
                     type="password"
                     value={wechatAppSecret}
                     onChange={(e) => setWechatAppSecret(e.target.value)}
                     placeholder="公众号 AppSecret"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
                   />
                 </label>
               </div>
@@ -359,16 +359,16 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handlePublish}
-                  className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-sm hover:bg-green-700 transition-all"
+                  className="bg-indigo-600 text-white font-semibold py-2.5 px-6 rounded-lg text-sm hover:bg-indigo-700 active:scale-95 transition-all shadow-sm hover:shadow"
                 >
                   确认发布到微信
                 </button>
               </div>
               {publishResult && (
-                <div className={`mt-4 p-4 rounded-lg text-sm ${publishResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                  <p className="font-medium">{publishResult.message}</p>
-                  {publishResult.stdout && <pre className="mt-2 whitespace-pre-wrap opacity-80">{publishResult.stdout}</pre>}
-                  {publishResult.stderr && <pre className="mt-2 whitespace-pre-wrap text-red-600">{publishResult.stderr}</pre>}
+                <div className={`mt-6 p-4 rounded-xl text-sm border ${publishResult.success ? 'bg-green-50 text-green-800 border-green-100' : 'bg-red-50 text-red-800 border-red-100'}`}>
+                  <p className="font-semibold">{publishResult.message}</p>
+                  {publishResult.stdout && <pre className="mt-3 whitespace-pre-wrap opacity-75 text-xs">{publishResult.stdout}</pre>}
+                  {publishResult.stderr && <pre className="mt-3 whitespace-pre-wrap text-red-600 text-xs">{publishResult.stderr}</pre>}
                 </div>
               )}
             </div>
