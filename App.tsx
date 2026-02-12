@@ -148,7 +148,13 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, WECHAT_APP_ID: wechatAppId.trim(), WECHAT_APP_SECRET: wechatAppSecret.trim() }),
       });
-      const data = await resp.json() as { success: boolean; message: string; stdout?: string; stderr?: string };
+      const text = await resp.text();
+      let data: { success: boolean; message: string; stdout?: string; stderr?: string };
+      try {
+        data = text ? (JSON.parse(text) as { success: boolean; message: string; stdout?: string; stderr?: string }) : { success: false, message: '服务器未返回有效数据' };
+      } catch {
+        data = { success: false, message: resp.ok ? '响应格式异常' : `请求失败: ${resp.status} ${text || resp.statusText}` };
+      }
       setPublishResult(data);
     } catch (e: any) {
       setPublishResult({ success: false, message: e?.message || '网络请求失败' });

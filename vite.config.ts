@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
 
             // GET 微信配置（用于前端展示默认值，可按需脱敏）
             server.middlewares.use('/api/wechat-config', (req, res, next) => {
-              if (req.method !== 'GET' || req.url !== '/api/wechat-config') return next();
+              if (req.method !== 'GET') return next();
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({
@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
 
             // POST 使用指定微信参数执行 wenyan 发布，并返回执行结果
             server.middlewares.use('/api/publish', (req, res, next) => {
-              if (req.method !== 'POST' || req.url !== '/api/publish') return next();
+              if (req.method !== 'POST') return next();
 
               let body = '';
               req.on('data', (chunk) => { body += chunk; });
