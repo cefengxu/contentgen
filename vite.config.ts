@@ -35,6 +35,8 @@ export default defineConfig(({ mode }) => {
                 return next();
               }
 
+              console.log('[save-markdown-middleware] 收到 POST /api/save-markdown 请求');
+
               let body = '';
               req.on('data', (chunk) => {
                 body += chunk;
@@ -64,20 +66,27 @@ export default defineConfig(({ mode }) => {
                   const filePath = path.join(outputDir, `${name}.md`);
 
                   fs.writeFileSync(filePath, content, 'utf8');
+                  console.log('[save-markdown-middleware] 已保存文件:', filePath);
 
                   // 生成后自动执行发布命令：wenyan publish -f /absolute/path/to/the/generated_xxx.md
-                  const cmd = `wenyan publish -f ${filePath}`;
-                  exec(cmd, (error, stdout, stderr) => {
+                  const cmd = `wenyan publish -f "${filePath}"`;
+                  const hasWechatId = !!process.env.WECHAT_APP_ID;
+                  const hasWechatSecret = !!process.env.WECHAT_APP_SECRET;
+                  console.log('[save-markdown-middleware] 执行 wenyan 命令:', cmd);
+                  console.log('[save-markdown-middleware] 环境变量 WECHAT_APP_ID:', hasWechatId ? '已设置' : '未设置');
+                  console.log('[save-markdown-middleware] 环境变量 WECHAT_APP_SECRET:', hasWechatSecret ? '已设置' : '未设置');
+
+                  exec(cmd, { env: process.env }, (error, stdout, stderr) => {
                     if (error) {
-                      console.error('[save-markdown-middleware] wenyan 命令执行失败:', error);
-                      if (stderr) {
-                        console.error('[save-markdown-middleware] wenyan stderr:', stderr);
-                      }
+                      console.error('[save-markdown-middleware] wenyan 命令执行失败:', error.message);
+                      console.error('[save-markdown-middleware] 退出码:', error.code ?? '(无)');
+                      if (stdout) console.log('[save-markdown-middleware] wenyan stdout:', stdout);
+                      if (stderr) console.error('[save-markdown-middleware] wenyan stderr:', stderr);
                       return;
                     }
-                    if (stdout) {
-                      console.log('[save-markdown-middleware] wenyan stdout:', stdout);
-                    }
+                    if (stdout) console.log('[save-markdown-middleware] wenyan stdout:', stdout);
+                    if (stderr) console.error('[save-markdown-middleware] wenyan stderr:', stderr);
+                    console.log('[save-markdown-middleware] wenyan 执行完成 (退出码 0)');
                   });
 
                   res.statusCode = 200;
