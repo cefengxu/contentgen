@@ -68,8 +68,8 @@ export default defineConfig(({ mode }) => {
                   fs.writeFileSync(filePath, content, 'utf8');
                   console.log('[save-markdown-middleware] 已保存文件:', filePath);
 
-                  // 生成后自动执行发布命令：wenyan publish -f /absolute/path/to/the/generated_xxx.md
-                  const cmd = `wenyan publish -f "${filePath}"`;
+                  // 使用 npx 执行，无需全局安装 wenyan；-y 表示直接使用不交互
+                  const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
                   const hasWechatId = !!process.env.WECHAT_APP_ID;
                   const hasWechatSecret = !!process.env.WECHAT_APP_SECRET;
                   console.log('[save-markdown-middleware] 执行 wenyan 命令:', cmd);
