@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
 import { generateArticle } from './services/llm';
@@ -50,6 +50,11 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [article, setArticle] = useState<ArticleData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedFilename, setSavedFilename] = useState<string | null>(null);
+  const [wechatAppId, setWechatAppId] = useState('');
+  const [wechatAppSecret, setWechatAppSecret] = useState('');
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
 
   const handleStartProcess = async () => {
     if (!keyword.trim()) return;
@@ -57,6 +62,8 @@ const App: React.FC = () => {
     setStatus(AppStatus.SEARCHING);
     setError(null);
     setArticle(null);
+    setSavedFilename(null);
+    setPublishResult(null);
 
     try {
       const { text: rawData, sources } = await fetchGlobalContext(keyword, engine);
@@ -93,6 +100,8 @@ const App: React.FC = () => {
         const msg = await saveResp.text();
         throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
       }
+      const saveData = await saveResp.json() as { filename?: string };
+      if (saveData.filename) setSavedFilename(saveData.filename);
 
       setArticle({
         title: keyword,
@@ -106,6 +115,58 @@ const App: React.FC = () => {
       setStatus(AppStatus.ERROR);
     }
   };
+
+  const handlePublish = async () => {
+    if (!wechatAppId.trim() || !wechatAppSecret.trim()) {
+      setPublishResult({ success: false, message: '请填写 WECHAT_APP_ID 和 WECHAT_APP_SECRET' });
+      return;
+    }
+    let filename = savedFilename;
+    if (!filename && article?.content) {
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: article.content }),
+      });
+      if (!saveResp.ok) {
+        setPublishResult({ success: false, message: '保存失败，无法发布' });
+        return;
+      }
+      const saveData = await saveResp.json() as { filename?: string };
+      filename = saveData.filename ?? null;
+      if (filename) setSavedFilename(filename);
+    }
+    if (!filename) {
+      setPublishResult({ success: false, message: '无可发布文件，请先生成文章' });
+      return;
+    }
+    setPublishLoading(true);
+    setPublishResult(null);
+    try {
+      const resp = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, WECHAT_APP_ID: wechatAppId.trim(), WECHAT_APP_SECRET: wechatAppSecret.trim() }),
+      });
+      const data = await resp.json() as { success: boolean; message: string; stdout?: string; stderr?: string };
+      setPublishResult(data);
+    } catch (e: any) {
+      setPublishResult({ success: false, message: e?.message || '网络请求失败' });
+    } finally {
+      setPublishLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (status !== AppStatus.COMPLETED) return;
+    fetch('/api/wechat-config')
+      .then((r) => r.json())
+      .then((data: { WECHAT_APP_ID?: string; WECHAT_APP_SECRET?: string }) => {
+        if (data.WECHAT_APP_ID != null) setWechatAppId(String(data.WECHAT_APP_ID));
+        if (data.WECHAT_APP_SECRET != null) setWechatAppSecret(String(data.WECHAT_APP_SECRET));
+      })
+      .catch(() => {});
+  }, [status]);
 
   return (
     <div className="min-h-screen pb-20 font-sans bg-gray-50 text-gray-900">
@@ -258,7 +319,60 @@ const App: React.FC = () => {
 
         {article && status === AppStatus.COMPLETED && (
           <div className="animate-in fade-in duration-1000 slide-in-from-top-4">
-             <ArticleDisplay content={article.content} sources={article.sources} />
+            <ArticleDisplay content={article.content} sources={article.sources} />
+            <div className="mt-10 p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">发布到微信公众号</h3>
+              <p className="text-sm text-gray-500 mb-4">填写公众号配置后点击「确认发布到微信」，文章将上传至该公众号草稿箱（约 30 秒～1 分钟）。</p>
+              <div className="space-y-4 mb-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-gray-700">WECHAT_APP_ID</span>
+                  <input
+                    type="text"
+                    value={wechatAppId}
+                    onChange={(e) => setWechatAppId(e.target.value)}
+                    placeholder="公众号 AppID"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-gray-700">WECHAT_APP_SECRET</span>
+                  <input
+                    type="password"
+                    value={wechatAppSecret}
+                    onChange={(e) => setWechatAppSecret(e.target.value)}
+                    placeholder="公众号 AppSecret"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishLoading}
+                  className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                >
+                  {publishLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      正在发布，请稍等…
+                    </>
+                  ) : (
+                    '确认发布到微信'
+                  )}
+                </button>
+              </div>
+              {publishResult && (
+                <div className={`mt-4 p-4 rounded-lg text-sm ${publishResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                  <p className="font-medium">{publishResult.message}</p>
+                  {publishResult.stdout && <pre className="mt-2 whitespace-pre-wrap opacity-80">{publishResult.stdout}</pre>}
+                  {publishResult.stderr && <pre className="mt-2 whitespace-pre-wrap text-red-600">{publishResult.stderr}</pre>}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

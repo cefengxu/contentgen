@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -30,6 +30,76 @@ export default defineConfig(({ mode }) => {
         {
           name: 'save-markdown-middleware',
           configureServer(server) {
+            const outputDir = path.resolve(__dirname, 'medias/docs');
+
+            // GET 微信配置（用于前端展示默认值，可按需脱敏）
+            server.middlewares.use('/api/wechat-config', (req, res, next) => {
+              if (req.method !== 'GET' || req.url !== '/api/wechat-config') return next();
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                WECHAT_APP_ID: process.env.WECHAT_APP_ID ?? '',
+                WECHAT_APP_SECRET: process.env.WECHAT_APP_SECRET ?? '',
+              }));
+            });
+
+            // POST 使用指定微信参数执行 wenyan 发布，并返回执行结果
+            server.middlewares.use('/api/publish', (req, res, next) => {
+              if (req.method !== 'POST' || req.url !== '/api/publish') return next();
+
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                try {
+                  const parsed = JSON.parse(body || '{}') as { filename?: string; WECHAT_APP_ID?: string; WECHAT_APP_SECRET?: string };
+                  const filename = parsed.filename?.trim();
+                  if (!filename) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: '缺少 filename' }));
+                    return;
+                  }
+                  const filePath = path.join(outputDir, filename);
+                  if (!fs.existsSync(filePath)) {
+                    res.statusCode = 404;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: '文件不存在: ' + filename }));
+                    return;
+                  }
+                  const env = { ...process.env };
+                  if (parsed.WECHAT_APP_ID != null) env.WECHAT_APP_ID = String(parsed.WECHAT_APP_ID);
+                  if (parsed.WECHAT_APP_SECRET != null) env.WECHAT_APP_SECRET = String(parsed.WECHAT_APP_SECRET);
+
+                  const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
+                  const isWin = process.platform === 'win32';
+                  const child = spawn(isWin ? 'cmd' : 'sh', [isWin ? '/c' : '-c', cmd], { env, cwd: __dirname, stdio: 'pipe' });
+                  let stdout = '';
+                  let stderr = '';
+                  child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
+                  child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+                  child.on('error', (err) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: err.message, stdout, stderr }));
+                  });
+                  child.on('close', (code, signal) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                      success: code === 0,
+                      message: code === 0 ? '已提交到公众号草稿箱' : `执行退出码 ${code}`,
+                      stdout: stdout || undefined,
+                      stderr: stderr || undefined,
+                    }));
+                  });
+                } catch (err: any) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: false, message: err?.message || '发布请求处理失败' }));
+                }
+              });
+            });
+
             server.middlewares.use('/api/save-markdown', (req, res, next) => {
               if (req.method !== 'POST') {
                 return next();
@@ -61,7 +131,6 @@ export default defineConfig(({ mode }) => {
                     name += chars.charAt(Math.floor(Math.random() * chars.length));
                   }
 
-                  const outputDir = path.resolve(__dirname, 'medias/docs');
                   fs.mkdirSync(outputDir, { recursive: true });
                   const filePath = path.join(outputDir, `${name}.md`);
 
