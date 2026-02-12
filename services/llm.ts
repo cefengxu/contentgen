@@ -116,11 +116,9 @@ function buildArticleSystemInstruction(rawData: string, options: GenerationOptio
     - 情绪化：嘲讽人身、贴标签、上价值判断。
 
 ## 输出要求
----
-title: 基于内容生成的标题（不夸张）
-cover: /home/ubuntu/docs_notion/assets/greencover.jpg
----
-[正文内容]
+1. 仅输出一篇完整的 Markdown 正文内容，不要输出任何 YAML Front-matter（即不要输出以 --- 包裹的配置块）。
+2. 如需标题，请使用 Markdown 标题语法（例如以「# 标题」或「## 标题」开头），而不是 YAML 的 title 字段。
+3. 不要在开头或结尾附加额外的说明文字、提示语或元信息，只保留文章本身。
 
 ## 抓取内容：
 ${rawData}`;

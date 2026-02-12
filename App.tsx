@@ -69,9 +69,34 @@ const App: React.FC = () => {
       const options: GenerationOptions = { audience, length, style, engine };
       const generatedContent = await generateArticle(keyword, rawData, options);
 
+      // 为生成的文章增加 Front-matter，并随机选择封面
+      const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
+      const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
+      const frontMatterLines = [
+        '---',
+        `title: ${keyword}`,
+        'cover: /home/xufeng8/google_ai_studio/contentgen/medias/assets/' + randomCover,
+        '---',
+        '',
+      ];
+      const frontMatter = frontMatterLines.join('\n');
+      const finalContent = frontMatter + generatedContent.trimStart();
+
+      // 将带有 Front-matter 的内容保存为本地 Markdown 文件
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalContent }),
+      });
+
+      if (!saveResp.ok) {
+        const msg = await saveResp.text();
+        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+      }
+
       setArticle({
         title: keyword,
-        content: generatedContent,
+        content: finalContent,
         sources
       });
       setStatus(AppStatus.COMPLETED);
