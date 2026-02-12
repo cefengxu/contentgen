@@ -1,0 +1,105 @@
+import { SearchResult, SearchEngine } from '../types';
+
+const TAVILY_API_KEY = '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';
+const EXA_API_KEY = 'b630ec0a-b78b-4981-b7ad-88550268a133';
+
+/**
+ * Performs search using Tavily API.
+ */
+async function fetchFromTavily(query: string): Promise<{ text: string; sources: SearchResult[] }> {
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      api_key: TAVILY_API_KEY,
+      query: `${query} global impact events history facts specific data 5 regions`,
+      search_depth: "advanced",
+      max_results: 15,
+      include_images: false,
+      include_answer: false,
+      include_raw_content: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Tavily Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.results || data.results.length === 0) {
+    throw new Error('Tavily No Results');
+  }
+
+  const sources: SearchResult[] = data.results.map((r: any) => ({
+    title: r.title || '无标题',
+    uri: r.url || ''
+  }));
+
+  const textContent = data.results
+    .map((r: any, idx: number) => `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${r.content}\nURL: ${r.url}`)
+    .join('\n\n');
+
+  return { text: textContent, sources };
+}
+
+/**
+ * Performs search using Exa API.
+ */
+async function fetchFromExa(query: string): Promise<{ text: string; sources: SearchResult[] }> {
+  const response = await fetch('https://api.exa.ai/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': EXA_API_KEY,
+    },
+    body: JSON.stringify({
+      query: `${query} detailed analysis specific data facts 5 regions`,
+      numResults: 15,
+      useAutoprompt: true,
+      type: 'neural'
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Exa Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.results || data.results.length === 0) {
+    throw new Error('Exa No Results');
+  }
+
+  const sources: SearchResult[] = data.results.map((r: any) => ({
+    title: r.title || '无标题',
+    uri: r.url || ''
+  }));
+
+  const textContent = data.results
+    .map((r: any, idx: number) => `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${r.snippet || 'No snippet'}\nURL: ${r.url}`)
+    .join('\n\n');
+
+  return { text: textContent, sources };
+}
+
+/**
+ * Performs a broad search with automatic retry/switching logic.
+ */
+export const fetchGlobalContext = async (keyword: string, engine: SearchEngine): Promise<{ text: string; sources: SearchResult[] }> => {
+  const primary = engine;
+  const secondary = engine === 'Tavily' ? 'Exa' : 'Tavily';
+
+  const performFetch = (eng: SearchEngine) => eng === 'Tavily' ? fetchFromTavily(keyword) : fetchFromExa(keyword);
+
+  try {
+    return await performFetch(primary);
+  } catch (err) {
+    console.warn(`Primary search engine (${primary}) failed, retrying with ${secondary}...`, err);
+    try {
+      return await performFetch(secondary);
+    } catch (err2) {
+      throw new Error(`检索失败：${primary} 及备用 ${secondary} 均不可用。`);
+    }
+  }
+};

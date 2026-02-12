@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { createChatSession } from '../services/gemini';
+import { createChatSession } from '../services/llm';
 
 interface ChatBotProps {
   keyword: string;

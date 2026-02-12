@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, SearchEngine } from './types';
-import { fetchGlobalContext, generateArticle } from './services/gemini';
+import { fetchGlobalContext } from './services/search';
+import { generateArticle } from './services/llm';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
 
@@ -243,7 +244,7 @@ const App: React.FC = () => {
       <footer className="mt-20 py-12 border-t border-gray-100 text-center">
         <div className="max-w-6xl mx-auto px-4 flex flex-col items-center gap-4">
           <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
-            <span className="font-bold text-gray-500 text-sm">Powered by Gemini 3 Pro</span>
+            <span className="font-bold text-gray-500 text-sm">OpenAI 兼容大模型</span>
             <span className="font-bold text-gray-500 text-sm">Dual Search: Tavily & Exa</span>
           </div>
           <p className="text-xs text-gray-400">© {new Date().getFullYear()} 全球背景自动化代理 v2.5.0 - 严格班佛体节奏指标</p>
