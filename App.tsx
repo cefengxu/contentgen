@@ -75,7 +75,7 @@ const App: React.FC = () => {
       const frontMatterLines = [
         '---',
         `title: ${keyword}`,
-        'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
+        'cover: /home/xufeng8/google_ai_studio/contentgen/medias/assets/' + randomCover,
         '---',
         '',
       ];
