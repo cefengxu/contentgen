@@ -53,9 +53,7 @@ const App: React.FC = () => {
   const [savedFilename, setSavedFilename] = useState<string | null>(null);
   const [wechatAppId, setWechatAppId] = useState('');
   const [wechatAppSecret, setWechatAppSecret] = useState('');
-  const [publishLoading, setPublishLoading] = useState(false);
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
-  const publishLoadingRef = useRef(false);
 
   const handleStartProcess = async () => {
     if (!keyword.trim()) return;
@@ -141,19 +139,17 @@ const App: React.FC = () => {
       setPublishResult({ success: false, message: '无可发布文件，请先生成文章' });
       return;
     }
-    setPublishLoading(true);
-    publishLoadingRef.current = true;
+    
+    // 清空之前的结果
     setPublishResult(null);
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), 120000);
+    
     try {
       const resp = await fetch('/api/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, WECHAT_APP_ID: wechatAppId.trim(), WECHAT_APP_SECRET: wechatAppSecret.trim() }),
-        signal: abortCtrl.signal,
       });
-      clearTimeout(timeoutId);
+      
       const text = await resp.text();
       let data: { success: boolean; message: string; stdout?: string; stderr?: string };
       try {
@@ -163,31 +159,13 @@ const App: React.FC = () => {
       }
       setPublishResult(data);
     } catch (e: any) {
-      const isAbort = e?.name === 'AbortError';
       setPublishResult({
         success: false,
-        message: isAbort
-          ? '发布请求超时（约 2 分钟）。若公众号草稿箱中已看到文章可忽略；否则请重试。'
-          : (e?.message || '网络请求失败'),
+        message: e?.message || '网络请求失败',
       });
-    } finally {
-      clearTimeout(timeoutId);
-      publishLoadingRef.current = false;
-      setPublishLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (!publishLoading) return;
-    const t = setTimeout(() => {
-      if (publishLoadingRef.current) {
-        publishLoadingRef.current = false;
-        setPublishLoading(false);
-        setPublishResult((prev) => prev ?? { success: false, message: '发布耗时较长，请到公众号草稿箱查看是否已收到文章；未收到可重试。' });
-      }
-    }, 125000);
-    return () => clearTimeout(t);
-  }, [publishLoading]);
 
   useEffect(() => {
     if (status !== AppStatus.COMPLETED) return;
@@ -381,20 +359,9 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handlePublish}
-                  disabled={publishLoading}
-                  className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-sm hover:bg-green-700 transition-all"
                 >
-                  {publishLoading ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      正在发布，请稍等…
-                    </>
-                  ) : (
-                    '确认发布到微信'
-                  )}
+                  确认发布到微信
                 </button>
               </div>
               {publishResult && (

@@ -73,56 +73,32 @@ export default defineConfig(({ mode }) => {
                   const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
                   console.log('[publish] 执行命令:', cmd);
 
+                  // 启动子进程但不等待结果，后台执行
                   exec(cmd, {
                     env,
                     cwd: __dirname,
-                    timeout: 90000,        // 90 秒超时，自动 kill
+                    timeout: 120000,
                     maxBuffer: 10 * 1024 * 1024,
                   }, (error, stdout, stderr) => {
-                    const stdoutStr = stdout?.toString() || '';
-                    const stderrStr = stderr?.toString() || '';
-                    // wenyan-cli 可能上传成功但进程被超时 kill（退出码非 0）
-                    // 通过 stdout 中的关键词判断是否真正成功
-                    const looksSuccessful = stdoutStr.includes('草稿') || stdoutStr.includes('success') || stdoutStr.includes('draft');
+                    // 这个回调在后台执行，仅用于日志记录
                     if (error) {
-                      const killed = (error as { killed?: boolean })?.killed;
-                      console.log('[publish] 命令结束, killed:', killed, 'code:', error.code);
-                      if (stdout) console.log('[publish] stdout:', stdoutStr);
-                      if (stderr) console.error('[publish] stderr:', stderrStr);
-                      res.statusCode = 200;
-                      res.setHeader('Content-Type', 'application/json');
-                      if (killed && looksSuccessful) {
-                        // 超时被 kill，但 stdout 表明已成功上传
-                        res.end(JSON.stringify({
-                          success: true,
-                          message: '已提交到公众号草稿箱（进程超时自动终止，但上传已完成）',
-                          stdout: stdoutStr || undefined,
-                          stderr: stderrStr || undefined,
-                        }));
-                      } else {
-                        res.end(JSON.stringify({
-                          success: false,
-                          message: killed
-                            ? '命令执行超时（90秒）。请检查公众号草稿箱确认是否已成功。'
-                            : (error.message || `执行退出码 ${error.code}`),
-                          stdout: stdoutStr || undefined,
-                          stderr: stderrStr || undefined,
-                        }));
-                      }
-                      return;
+                      console.error('[publish] wenyan-cli 执行失败:', error.message);
+                      if (stdout) console.log('[publish] stdout:', stdout);
+                      if (stderr) console.error('[publish] stderr:', stderr);
+                    } else {
+                      console.log('[publish] wenyan-cli 执行完成');
+                      if (stdout) console.log('[publish] stdout:', stdout);
+                      if (stderr) console.log('[publish] stderr:', stderr);
                     }
-                    console.log('[publish] 命令执行成功');
-                    if (stdout) console.log('[publish] stdout:', stdoutStr);
-                    if (stderr) console.error('[publish] stderr:', stderrStr);
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({
-                      success: true,
-                      message: '已提交到公众号草稿箱',
-                      stdout: stdoutStr || undefined,
-                      stderr: stderrStr || undefined,
-                    }));
                   });
+
+                  // 立即返回成功响应，不等待命令执行完成
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({
+                    success: true,
+                    message: '文章已发送，预计 5 分钟后可在后台查看。',
+                  }));
                 } catch (err: any) {
                   res.statusCode = 500;
                   res.setHeader('Content-Type', 'application/json');
