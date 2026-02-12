@@ -1,0 +1,8 @@
+{
+  "name": "Global Context: Automated Content Agent",
+  "description": "An automated AI agent that gathers global information via Google Search and synthesizes it into structured, science-based Chinese articles with a story-driven approach.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
