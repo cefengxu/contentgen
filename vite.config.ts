@@ -76,9 +76,16 @@ export default defineConfig(({ mode }) => {
                   console.log('[save-markdown-middleware] 环境变量 WECHAT_APP_ID:', hasWechatId ? '已设置' : '未设置');
                   console.log('[save-markdown-middleware] 环境变量 WECHAT_APP_SECRET:', hasWechatSecret ? '已设置' : '未设置');
 
-                  exec(cmd, { env: process.env }, (error, stdout, stderr) => {
+                  exec(cmd, {
+                    env: process.env,
+                    timeout: 60000,
+                    maxBuffer: 10 * 1024 * 1024,
+                  }, (error, stdout, stderr) => {
                     if (error) {
                       console.error('[save-markdown-middleware] wenyan 命令执行失败:', error.message);
+                      if ((error as { killed?: boolean })?.killed) {
+                        console.error('[save-markdown-middleware] 可能原因: 执行超时(60秒)或输出过多');
+                      }
                       console.error('[save-markdown-middleware] 退出码:', error.code ?? '(无)');
                       if (stdout) console.log('[save-markdown-middleware] wenyan stdout:', stdout);
                       if (stderr) console.error('[save-markdown-middleware] wenyan stderr:', stderr);
@@ -88,6 +95,7 @@ export default defineConfig(({ mode }) => {
                     if (stderr) console.error('[save-markdown-middleware] wenyan stderr:', stderr);
                     console.log('[save-markdown-middleware] wenyan 执行完成 (退出码 0)');
                   });
+                  console.log('[save-markdown-middleware] wenyan 子进程已启动，等待结束（最长 60 秒）…');
 
                   res.statusCode = 200;
                   res.setHeader('Content-Type', 'application/json');
