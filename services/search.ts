@@ -1,7 +1,7 @@
 import { SearchResult, SearchEngine } from '../types';
 
-const TAVILY_API_KEY = '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';
-const EXA_API_KEY = 'b630ec0a-b78b-4981-b7ad-88550268a133';
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY ?? '';
+const EXA_API_KEY = process.env.EXA_API_KEY ?? '';
 
 /**
  * Performs search using Tavily API.
