@@ -160,7 +160,9 @@ export default defineConfig(({ mode }) => {
       define: {
         'process.env.LLM_API_BASE_URL': JSON.stringify(env.LLM_API_BASE_URL ?? ''),
         'process.env.LLM_API_KEY': JSON.stringify(env.LLM_API_KEY ?? ''),
-        'process.env.LLM_MODEL': JSON.stringify(env.LLM_MODEL ?? 'gpt-3.5-turbo')
+        'process.env.LLM_MODEL': JSON.stringify(env.LLM_MODEL ?? 'gpt-3.5-turbo'),
+        'process.env.TAVILY_API_KEY': JSON.stringify(env.TAVILY_API_KEY ?? ''),
+        'process.env.EXA_API_KEY': JSON.stringify(env.EXA_API_KEY ?? ''),
       },
       resolve: {
         alias: {
