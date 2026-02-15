@@ -179,19 +179,15 @@ function buildArticleSystemInstruction(rawData: string, options: GenerationOptio
 - **非事实润滑表达计数口径**：按**句子数**估算占比 ≤10%；与事实约束冲突时，**以事实优先**。
 
 ## 输出要求
-1. **在 Markdown 文件顶部插入以下 Front‑matter（必须严格保持格式）：**
-\`\`\`
-   ---
-   title: YOUR_ARTICAL_TITLE # \`title\` 需基于文章内容生成，不得夸张或引申
-   cover: /home/ubuntu/docs_notion/assets/greencover.jpg  # \`cover\` 字段必须保持不变
-   ---
-\`\`\`
-  
+1. **仅输出 Markdown 正文内容**
+   - 不要输出任何 YAML Front-matter（即不要输出以 \`---\` 包裹的配置块）
+   - 不要输出 title、cover 等元信息字段
+   - Front-matter 将由系统代码统一添加
 
 2. **正文输出规则：**
-   - Front‑matter 后紧接正文
+   - 直接从文章正文开始输出
    - 仅输出 **最终微信公众号文章正文**
-   - 使用 **Markdown**
+   - 使用 **Markdown** 格式
    - 不输出搜索过程、不输出中间分析
    - 不输出任何任务说明或额外解释
 
