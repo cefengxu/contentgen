@@ -9,9 +9,7 @@ import ChatBot from './components/ChatBot';
 const AUDIENCE_PRESETS = [
   { label: '泛科技读者 (一般)', value: '泛科技读者, 背景知识一般, 关注点优先级: 行业应用 > 技术特性, 语气自然, 行话密度中' },
   { label: '专业工程师 (深度)', value: '资深工程师, 背景知识专业, 关注点优先级: 技术特性 > 如何实现, 语气冷静客观, 行话密度高' },
-  { label: '小学老师 (入门)', value: '小学老师, 背景知识入门, 关注点优先级: 行业应用 > 技术特性, 语气亲切自然, 行话密度低' },
-  { label: '初中老师 (一般)', value: '初中老师, 背景知识一般, 关注点优先级: 行业应用 > 技术特性, 语气专业冷静, 行话密度中' },
-  { label: '高中老师 (专业)', value: '高中老师, 背景知识专业, 关注点优先级: 行业应用 > 技术特性, 语气专业冷静, 行话密度中' },
+  { label: 'K12 教师', value: 'K12教师（小学/初中/高中）, 背景知识可覆盖入门到专业, 关注点优先级: 行业应用 > 技术特性, 语气亲切到专业均可, 行话密度低到中' },
   { label: '产品经理 (商业)', value: '产品经理, 背景知识一般, 关注点优先级: 市场与生态 > 行业应用, 语气专业冷静, 行话密度中' },
   { label: '券商分析师 (严谨)', value: '券商分析师, 背景知识专业, 关注点优先级: 市场与生态 > 合规与风险, 语气专业冷静, 行话密度中' },
 ];
@@ -189,7 +187,7 @@ const App: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l5 5v11a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold tracking-tight">内容整合代理 v2.5</h1>
+            <h1 className="text-xl font-bold tracking-tight">Info.X</h1>
           </div>
 
           <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3 overflow-x-auto pb-2 md:pb-0">
@@ -277,7 +275,7 @@ const App: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
-            <h2 className="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">多风格全球事实整合 v2.5</h2>
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">多风格全球事实整合</h2>
             <p className="text-gray-500 max-w-xl mx-auto leading-relaxed text-lg">
               集成了 Tavily 与 Exa 双搜索引擎，支持自动容错重试。
               提供 11 种专业文风与多维度的读者人群定制，确保信息硬核、准确且易读。
@@ -382,10 +380,9 @@ const App: React.FC = () => {
       <footer className="mt-20 py-12 border-t border-gray-100 text-center">
         <div className="max-w-6xl mx-auto px-4 flex flex-col items-center gap-4">
           <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
-            <span className="font-bold text-gray-500 text-sm">OpenAI 兼容大模型</span>
             <span className="font-bold text-gray-500 text-sm">Dual Search: Tavily & Exa</span>
           </div>
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} 全球背景自动化代理 v2.5.0 - 严格班佛体节奏指标</p>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.aws.20260215</p>
         </div>
       </footer>
     </div>
