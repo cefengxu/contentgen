@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
       server: {
         port,
         host: '0.0.0.0',
+        // 避免保存生成的文章到 medias/docs 时触发文件监听，导致页面自动刷新
+        watch: {
+          ignored: ['**/medias/**'],
+        },
       },
       plugins: [
         react(),
