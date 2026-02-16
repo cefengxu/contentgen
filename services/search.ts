@@ -11,15 +11,14 @@ async function fetchFromTavily(query: string): Promise<{ text: string; sources: 
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${TAVILY_API_KEY}`,
     },
     body: JSON.stringify({
-      api_key: TAVILY_API_KEY,
-      query: `${query} global impact events history facts specific data 5 regions`,
-      search_depth: "advanced",
-      max_results: 15,
-      include_images: false,
-      include_answer: false,
-      include_raw_content: false,
+      query,
+      include_answer: 'basic',
+      search_depth: 'basic',
+      max_results: 6,
+      time_range: 'month',
     }),
   });
 
@@ -38,7 +37,7 @@ async function fetchFromTavily(query: string): Promise<{ text: string; sources: 
   }));
 
   const textContent = data.results
-    .map((r: any, idx: number) => `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${r.content}\nURL: ${r.url}`)
+    .map((r: any, idx: number) => `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${r.content ?? ''}\nURL: ${r.url}`)
     .join('\n\n');
 
   return { text: textContent, sources };
@@ -55,10 +54,14 @@ async function fetchFromExa(query: string): Promise<{ text: string; sources: Sea
       'x-api-key': EXA_API_KEY,
     },
     body: JSON.stringify({
-      query: `${query} detailed analysis specific data facts 5 regions`,
-      numResults: 15,
-      useAutoprompt: true,
-      type: 'neural'
+      query,
+      numResults: 6,
+      type: 'auto',
+      contents: {
+        highlights: {
+          maxCharacters: 4000,
+        },
+      },
     }),
   });
 
@@ -77,7 +80,10 @@ async function fetchFromExa(query: string): Promise<{ text: string; sources: Sea
   }));
 
   const textContent = data.results
-    .map((r: any, idx: number) => `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${r.snippet || 'No snippet'}\nURL: ${r.url}`)
+    .map((r: any, idx: number) => {
+      const content = Array.isArray(r.highlights) ? r.highlights.join('\n') : (r.snippet || 'No snippet');
+      return `[Source ${idx + 1}]\nTitle: ${r.title}\nContent: ${content}\nURL: ${r.url}`;
+    })
     .join('\n\n');
 
   return { text: textContent, sources };
