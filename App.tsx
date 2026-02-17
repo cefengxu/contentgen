@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppStatus, ArticleData, GenerationOptions, SearchEngine } from './types';
+import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
 import { generateArticle } from './services/llm';
+import { generateArticle as generateArticleGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
 
@@ -39,12 +40,18 @@ const ENGINE_PRESETS: { label: string; value: SearchEngine }[] = [
   { label: 'Exa (神经搜索)', value: 'Exa' },
 ];
 
+const LLM_PROVIDER_PRESETS: { label: string; value: LLMProvider }[] = [
+  { label: 'OpenAI', value: 'OpenAI' },
+  { label: 'Gemini', value: 'Gemini' },
+];
+
 const App: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [audience, setAudience] = useState(AUDIENCE_PRESETS[0].value);
   const [style, setStyle] = useState(STYLE_PRESETS[0].value);
   const [length, setLength] = useState(LENGTH_PRESETS[0].value);
   const [engine, setEngine] = useState<SearchEngine>('Tavily');
+  const [provider, setProvider] = useState<LLMProvider>('OpenAI');
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [article, setArticle] = useState<ArticleData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +77,10 @@ const App: React.FC = () => {
       }
 
       setStatus(AppStatus.GENERATING);
-      const options: GenerationOptions = { audience, length, style, engine };
-      const generatedContent = await generateArticle(keyword, rawData, options);
+      const options: GenerationOptions = { audience, length, style, engine, provider };
+      const generatedContent = provider === 'Gemini'
+        ? await generateArticleGemini(keyword, rawData, options)
+        : await generateArticle(keyword, rawData, options);
 
       // 为生成的文章增加 Front-matter，并随机选择封面
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
@@ -192,6 +201,17 @@ const App: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3 overflow-x-auto pb-2 md:pb-0">
             <div className="flex flex-col gap-1 shrink-0">
+              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as LLMProvider)}
+                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+              >
+                {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 shrink-0">
               <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">搜索引擎</span>
               <select 
                 value={engine} 
@@ -294,7 +314,7 @@ const App: React.FC = () => {
             </div>
             <div className="text-center">
               <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {status === AppStatus.SEARCHING ? `正在使用 ${engine} 检索事实数据...` : '正在进行多风格整合写作...'}
+                {status === AppStatus.SEARCHING ? `正在使用 ${engine} 检索事实数据...` : `正在使用 ${provider} 进行多风格整合写作...`}
               </h3>
               <p className="text-gray-400 max-w-sm mx-auto text-sm leading-relaxed">
                 正在执行严格的自检流程：核实数字单位、动词驱动优化、短句混排自适应。
@@ -375,7 +395,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Persistent ChatBot */}
-      {article && <ChatBot keyword={article.title} context={article.content} />}
+      {article && <ChatBot keyword={article.title} context={article.content} provider={provider} />}
       
       <footer className="mt-20 py-12 border-t border-gray-100 text-center">
         <div className="max-w-6xl mx-auto px-4 flex flex-col items-center gap-4">

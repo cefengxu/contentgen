@@ -1,14 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage } from '../types';
+import { ChatMessage, LLMProvider } from '../types';
 import { createChatSession } from '../services/llm';
+import { createChatSession as createChatSessionGemini } from '../services/llm_gemini';
 
 interface ChatBotProps {
   keyword: string;
   context: string;
+  provider?: LLMProvider;
 }
 
-const ChatBot: React.FC<ChatBotProps> = ({ keyword, context }) => {
+const ChatBot: React.FC<ChatBotProps> = ({ keyword, context, provider = 'OpenAI' }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -18,9 +20,11 @@ const ChatBot: React.FC<ChatBotProps> = ({ keyword, context }) => {
 
   useEffect(() => {
     if (context && keyword) {
-      chatRef.current = createChatSession(keyword, context);
+      chatRef.current = provider === 'Gemini'
+        ? createChatSessionGemini(keyword, context)
+        : createChatSession(keyword, context);
     }
-  }, [context, keyword]);
+  }, [context, keyword, provider]);
 
   useEffect(() => {
     if (scrollRef.current) {
