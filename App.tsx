@@ -62,8 +62,7 @@ const App: React.FC = () => {
   // 文档解析（仅 Gemini）
   const [docPdfUrl, setDocPdfUrl] = useState('');
   const [docPrompt, setDocPrompt] = useState('');
-  const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [docParseResult, setDocParseResult] = useState<string | null>(null);
+  const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
 
   const handleStartProcess = async () => {
@@ -130,25 +129,79 @@ const App: React.FC = () => {
 
   const handleParseDocument = async () => {
     if (!docPdfUrl.trim() || !docPrompt.trim()) return;
+
+    // 文档解析采用与「立即整合」相同的生成与保存流程，只是数据来源改为 PDF
+    setStatus(AppStatus.GENERATING);
+    setError(null);
+    setArticle(null);
+    setSavedFilename(null);
+    setPublishResult(null);
     setDocParseStatus('loading');
     setDocParseError(null);
-    setDocParseResult(null);
+
     try {
+      // 第一步：调用后端 API，用 Gemini 解析 PDF，获得原始文本/摘要
       const resp = await fetch('/api/parse-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfUrl: docPdfUrl.trim(), prompt: docPrompt.trim() }),
       });
       const data = await resp.json() as { success: boolean; text?: string; message?: string };
-      if (!data.success) {
-        setDocParseError(data.message || '解析失败');
-        setDocParseStatus('error');
-        return;
+      if (!data.success || !data.text) {
+        throw new Error(data.message || '文档解析失败');
       }
-      setDocParseResult(data.text ?? '');
-      setDocParseStatus('done');
+
+      const rawDataFromPdf = data.text;
+
+      // 第二步：沿用 llm_gemini.ts 中的系统提示与生成逻辑，直接用 Gemini 写文章
+      const options: GenerationOptions = { audience, length, style, engine, provider };
+      const usedKeyword = keyword.trim() || 'PDF 文档';
+      const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
+
+      // 与「立即整合」一致的 Front-matter + 随机封面 + 本地保存逻辑
+      const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
+      const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
+      const frontMatterLines = [
+        '---',
+        `title: ${usedKeyword}`,
+        'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
+        '---',
+        '',
+      ];
+      const frontMatter = frontMatterLines.join('\n');
+      const finalContent = frontMatter + generatedContent.trimStart();
+
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalContent }),
+      });
+
+      if (!saveResp.ok) {
+        const msg = await saveResp.text();
+        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+      }
+      const saveData = await saveResp.json() as { filename?: string };
+      if (saveData.filename) setSavedFilename(saveData.filename);
+
+      const sources = docPdfUrl.trim()
+        ? [{ title: usedKeyword, uri: docPdfUrl.trim() }]
+        : [];
+
+      setArticle({
+        title: usedKeyword,
+        content: finalContent,
+        sources,
+      });
+
+      setStatus(AppStatus.COMPLETED);
+      setDocParseStatus('idle');
     } catch (e: any) {
-      setDocParseError(e?.message || '请求失败');
+      console.error('Doc Parse Error:', e);
+      const msg = e?.message || '文档解析或写作失败，请重试。';
+      setError(msg);
+      setDocParseError(msg);
+      setStatus(AppStatus.ERROR);
       setDocParseStatus('error');
     }
   };
@@ -313,65 +366,58 @@ const App: React.FC = () => {
                 </>
               ) : '立即整合'}
             </button>
+            {provider === 'Gemini' && (
+              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row w-full gap-3">
+                <div className="flex flex-col gap-1 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">PDF 链接</span>
+                  <input
+                    type="url"
+                    value={docPdfUrl}
+                    onChange={(e) => setDocPdfUrl(e.target.value)}
+                    placeholder="https://example.com/document.pdf"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING || docParseStatus === 'loading'}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">解析指令</span>
+                  <input
+                    type="text"
+                    value={docPrompt}
+                    onChange={(e) => setDocPrompt(e.target.value)}
+                    placeholder="例如：总结这份文档，按当前风格生成文章"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING || docParseStatus === 'loading'}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">文档解析</span>
+                  <button
+                    type="button"
+                    onClick={handleParseDocument}
+                    disabled={
+                      !docPdfUrl.trim() ||
+                      !docPrompt.trim() ||
+                      status === AppStatus.SEARCHING ||
+                      status === AppStatus.GENERATING ||
+                      docParseStatus === 'loading'
+                    }
+                    className="bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-100 disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5"
+                  >
+                    {docParseStatus === 'loading' ? '解析中…' : '解析文档'}
+                  </button>
+                  {docParseStatus === 'error' && docParseError && (
+                    <span className="mt-1 text-[11px] text-red-500">{docParseError}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 mt-12">
-        {/* 文档解析：仅选择 Gemini 时显示 */}
-        {provider === 'Gemini' && (
-          <div className="mb-10 p-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">文档解析（Gemini）</h3>
-            <p className="text-sm text-gray-500 mb-4">输入 PDF 下载链接与解析指令，由 Gemini 解析文档并返回结果。OpenAI 不支持此功能。</p>
-            <div className="space-y-4">
-              <label className="block">
-                <span className="text-sm font-semibold text-gray-700 mb-1.5 block">PDF 下载链接</span>
-                <input
-                  type="url"
-                  value={docPdfUrl}
-                  onChange={(e) => setDocPdfUrl(e.target.value)}
-                  placeholder="https://example.com/document.pdf"
-                  className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  disabled={docParseStatus === 'loading'}
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-gray-700 mb-1.5 block">解析指令（Prompt）</span>
-                <textarea
-                  value={docPrompt}
-                  onChange={(e) => setDocPrompt(e.target.value)}
-                  placeholder="例如：总结这份文档 / 提取关键要点"
-                  rows={3}
-                  className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y"
-                  disabled={docParseStatus === 'loading'}
-                />
-              </label>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleParseDocument}
-                  disabled={!docPdfUrl.trim() || !docPrompt.trim() || docParseStatus === 'loading'}
-                  className="bg-indigo-600 text-white font-semibold py-2.5 px-6 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  {docParseStatus === 'loading' ? '解析中…' : '解析文档'}
-                </button>
-              </div>
-              {docParseStatus === 'done' && docParseResult != null && (
-                <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 mb-2">解析结果</p>
-                  <div className="text-sm text-gray-800 whitespace-pre-wrap">{docParseResult}</div>
-                </div>
-              )}
-              {docParseStatus === 'error' && docParseError && (
-                <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700">
-                  {docParseError}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {status === AppStatus.IDLE && !article && (
           <div className="text-center py-24 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="inline-block p-5 bg-indigo-50 rounded-3xl mb-8 text-indigo-600 shadow-inner">
