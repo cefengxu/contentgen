@@ -45,6 +45,36 @@ const LLM_PROVIDER_PRESETS: { label: string; value: LLMProvider }[] = [
   { label: 'Gemini', value: 'Gemini' },
 ];
 
+// 文档结构化默认解析指令（用户可自由修改）
+const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
+
+请从用户提供的文档中提取“完整的结构结构化信息”。请严格遵循以下要求：
+
+【解析要求】
+1. 识别文档的全部结构，包括但不限于：
+   - 一级标题
+   - 二级/三级标题
+   - 段落
+   - 列表（有序/无序）
+   - 表格（以结构描述方式提取）
+   - 图表（提供说明文字）
+2. 保证章节的“层级关系“准确无误。
+
+【抽取内容要求】
+对于每一个结构单元，请输出以下字段：
+- type（如：title / section / paragraph / list / table 等）
+- level（如 1、2、3 级标题）
+- title（若有）
+- content（原文或部分摘要）
+- children（如包含子结构） 
+
+【鲁棒性要求】
+- 文档可能格式混乱、换行不规范、层级缺失；请自动纠正并构建最佳结构化输出。
+- 不要遗漏任何信息。
+- 不要进行主观扩写，只提取实际内容。
+
+你的目标是： **生成一份准确、完整、可用于程序处理的文档结构化结果。**`;
+
 const App: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [audience, setAudience] = useState(AUDIENCE_PRESETS[0].value);
@@ -61,7 +91,7 @@ const App: React.FC = () => {
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
   // 文档解析（仅 Gemini）
   const [docPdfUrl, setDocPdfUrl] = useState('');
-  const [docPrompt, setDocPrompt] = useState('');
+  const [docPrompt, setDocPrompt] = useState(DEFAULT_DOC_PROMPT);
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
 
@@ -381,12 +411,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-1 flex-1">
                   <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">解析指令</span>
-                  <input
-                    type="text"
+                  <textarea
                     value={docPrompt}
                     onChange={(e) => setDocPrompt(e.target.value)}
-                    placeholder="例如：总结这份文档，按当前风格生成文章"
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    rows={3}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-y min-h-[3.5rem]"
                     disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING || docParseStatus === 'loading'}
                   />
                 </div>
