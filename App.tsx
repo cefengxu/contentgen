@@ -94,6 +94,7 @@ const App: React.FC = () => {
   const [docPrompt, setDocPrompt] = useState(DEFAULT_DOC_PROMPT);
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
 
   const handleStartProcess = async () => {
     if (!keyword.trim()) return;
@@ -225,6 +226,7 @@ const App: React.FC = () => {
       });
 
       setStatus(AppStatus.COMPLETED);
+      setIsDocModalOpen(false);
       setDocParseStatus('idle');
     } catch (e: any) {
       console.error('Doc Parse Error:', e);
@@ -303,8 +305,8 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-20 font-sans bg-gray-50 text-gray-900">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 py-4 px-4 sticky top-0 z-40 backdrop-blur-md bg-white/80">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-start gap-4 md:gap-6">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l5 5v11a2 2 0 01-2 2z" />
@@ -313,63 +315,93 @@ const App: React.FC = () => {
             <h1 className="text-xl font-bold tracking-tight">Info.X</h1>
           </div>
 
-          <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3 overflow-x-auto pb-2 md:pb-0">
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as LLMProvider)}
-                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+          <div className="flex flex-col w-full md:w-auto gap-3">
+            {/* 第一行：模型 / 搜索引擎 / 读者 / 风格 / 长度 + 两个按钮 */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex flex-col gap-1 shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
+                <select
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as LLMProvider)}
+                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                >
+                  {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">搜索引擎</span>
+                <select 
+                  value={engine} 
+                  onChange={(e) => setEngine(e.target.value as SearchEngine)}
+                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                >
+                  {ENGINE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">读者人群</span>
+                <select 
+                  value={audience} 
+                  onChange={(e) => setAudience(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                >
+                  {AUDIENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">文章风格</span>
+                <select 
+                  value={style} 
+                  onChange={(e) => setStyle(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                >
+                  {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">目标长度</span>
+                <select 
+                  value={length} 
+                  onChange={(e) => setLength(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                >
+                  {LENGTH_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <button
+                onClick={handleStartProcess}
+                disabled={!keyword.trim() || status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                className="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 shadow-md flex items-center justify-center gap-2 mt-auto sm:mt-5"
               >
-                {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
+                {(status === AppStatus.SEARCHING || status === AppStatus.GENERATING) ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    处理中
+                  </>
+                ) : '立即整合'}
+              </button>
+              {provider === 'Gemini' && (
+                <button
+                  type="button"
+                  onClick={() => setIsDocModalOpen(true)}
+                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+                  className="bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-100 disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5 whitespace-nowrap"
+                >
+                  PDF 文档解析
+                </button>
+              )}
             </div>
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">搜索引擎</span>
-              <select 
-                value={engine} 
-                onChange={(e) => setEngine(e.target.value as SearchEngine)}
-                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              >
-                {ENGINE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">读者人群</span>
-              <select 
-                value={audience} 
-                onChange={(e) => setAudience(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              >
-                {AUDIENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">文章风格</span>
-              <select 
-                value={style} 
-                onChange={(e) => setStyle(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              >
-                {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">目标长度</span>
-              <select 
-                value={length} 
-                onChange={(e) => setLength(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              >
-                {LENGTH_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 flex-1 sm:w-48">
+
+            {/* 第二行：话题关键词 + 较长输入框 */}
+            <div className="flex flex-col gap-1 pt-3 border-t border-gray-100">
               <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">话题关键词</span>
               <input
                 type="text"
@@ -377,73 +409,125 @@ const App: React.FC = () => {
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleStartProcess()}
                 placeholder="输入话题..."
-                className="border border-gray-200 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white"
+                className="border border-gray-200 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white w-full max-w-xl min-w-[16rem]"
                 disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
               />
             </div>
-            <button
-              onClick={handleStartProcess}
-              disabled={!keyword.trim() || status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              className="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 shadow-md flex items-center justify-center gap-2 mt-auto sm:mt-5"
-            >
-              {(status === AppStatus.SEARCHING || status === AppStatus.GENERATING) ? (
-                <>
-                  <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  处理中
-                </>
-              ) : '立即整合'}
-            </button>
-            {provider === 'Gemini' && (
-              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row w-full gap-3">
-                <div className="flex flex-col gap-1 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">PDF 链接</span>
-                  <input
-                    type="url"
-                    value={docPdfUrl}
-                    onChange={(e) => setDocPdfUrl(e.target.value)}
-                    placeholder="https://example.com/document.pdf"
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                    disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING || docParseStatus === 'loading'}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">解析指令</span>
-                  <textarea
-                    value={docPrompt}
-                    onChange={(e) => setDocPrompt(e.target.value)}
-                    rows={3}
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-y min-h-[3.5rem]"
-                    disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING || docParseStatus === 'loading'}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 shrink-0">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">文档解析</span>
-                  <button
-                    type="button"
-                    onClick={handleParseDocument}
-                    disabled={
-                      !docPdfUrl.trim() ||
-                      !docPrompt.trim() ||
-                      status === AppStatus.SEARCHING ||
-                      status === AppStatus.GENERATING ||
-                      docParseStatus === 'loading'
-                    }
-                    className="bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-100 disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5"
-                  >
-                    {docParseStatus === 'loading' ? '解析中…' : '解析文档'}
-                  </button>
-                  {docParseStatus === 'error' && docParseError && (
-                    <span className="mt-1 text-[11px] text-red-500">{docParseError}</span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </header>
+
+      {/* PDF 文档解析弹窗（仅 Gemini） */}
+      {provider === 'Gemini' && isDocModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl mx-4">
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
+              <div>
+                <h2 className="text-sm font-bold text-gray-900">PDF 文档解析（Gemini）</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  输入 PDF 链接，并按需调整解析指令。解析结果将按照当前读者人群与文章风格生成文章。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => docParseStatus !== 'loading' && setIsDocModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 rounded-full p-1.5 hover:bg-gray-100"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block">当前将用于生成文章的设置</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-700">
+                  <div>
+                    <span className="text-gray-400">读者人群：</span>
+                    <span className="font-medium">{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">文章风格：</span>
+                    <span className="font-medium">{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">目标长度：</span>
+                    <span className="font-medium">{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</span>
+                  </div>
+                </div>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700 mb-1.5 block">PDF 下载链接</span>
+                <input
+                  type="url"
+                  value={docPdfUrl}
+                  onChange={(e) => setDocPdfUrl(e.target.value)}
+                  placeholder="https://example.com/document.pdf"
+                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700 mb-1.5 block">解析指令（可直接编辑）</span>
+                <textarea
+                  value={docPrompt}
+                  onChange={(e) => setDocPrompt(e.target.value)}
+                  rows={10}
+                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[10rem]"
+                  disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  默认提示词已针对「文档结构化解析」优化，你也可以根据具体文档类型微调要求。
+                </p>
+              </label>
+
+              {docParseStatus === 'error' && docParseError && (
+                <div className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                  {docParseError}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => docParseStatus !== 'loading' && setIsDocModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-100"
+                disabled={docParseStatus === 'loading'}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleParseDocument}
+                disabled={
+                  !docPdfUrl.trim() ||
+                  !docPrompt.trim() ||
+                  docParseStatus === 'loading' ||
+                  status === AppStatus.GENERATING ||
+                  status === AppStatus.SEARCHING
+                }
+                className="bg-indigo-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+              >
+                {docParseStatus === 'loading' ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    解析并生成文章
+                  </>
+                ) : (
+                  '解析并生成文章'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 mt-12">
@@ -561,7 +645,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
             <span className="font-bold text-gray-500 text-sm">Dual Search: Tavily & Exa</span>
           </div>
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.aws.20260215</p>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.aws.20260217</p>
         </div>
       </footer>
     </div>
