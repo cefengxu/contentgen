@@ -40,6 +40,40 @@ export const generateContent = async (contents: string): Promise<string> => {
 };
 
 /**
+ * 文档解析：根据 PDF 下载链接与用户 prompt，使用 Gemini 解析 PDF 并返回文本结果。
+ * 仅 Gemini 支持；OpenAI 不支持。
+ * @param pdfUrl PDF 的下载链接（由用户提供）
+ * @param prompt 用户输入的解析指令（如「总结这份文档」）
+ */
+export const parseDocument = async (pdfUrl: string, prompt: string): Promise<string> => {
+  const { apiKey, model, baseUrl } = getGeminiConfig();
+  const ai = new GoogleGenAI({
+    apiKey,
+    ...(baseUrl && { httpOptions: { baseUrl } }),
+  });
+
+  const pdfResp = await fetch(pdfUrl).then((r) => r.arrayBuffer());
+  const dataBase64 = Buffer.from(pdfResp).toString('base64');
+
+  const contents = [
+    { text: prompt },
+    {
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: dataBase64,
+      },
+    },
+  ];
+
+  const response = await ai.models.generateContent({
+    model,
+    contents,
+  });
+
+  return response.text ?? '';
+};
+
+/**
  * 多轮对话补全（非流式、无思考模式）
  * 将 system/user/assistant 消息转为 Gemini 的 systemInstruction + contents 调用
  */

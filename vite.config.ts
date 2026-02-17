@@ -22,6 +22,12 @@ export default defineConfig(({ mode }) => {
         {
           name: 'log-env',
           configureServer() {
+            // 把 .env / .env.local 等已加载的变量同步到 process.env，供服务端中间件和 API 使用
+            for (const [k, v] of Object.entries(env)) {
+              if (v != null && v !== '' && (process.env[k] == null || process.env[k] === '')) {
+                process.env[k] = v;
+              }
+            }
             console.log('\n[contentgen] 开发服务器环境:');
             console.log('  LLM_API_BASE_URL:', env.LLM_API_BASE_URL ? `${env.LLM_API_BASE_URL.slice(0, 30)}...` : '(未设置)');
             console.log('  LLM_API_KEY:', env.LLM_API_KEY ? '已设置' : '(未设置)');
@@ -110,6 +116,35 @@ export default defineConfig(({ mode }) => {
                   res.statusCode = 500;
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify({ success: false, message: err?.message || '发布请求处理失败' }));
+                }
+              });
+            });
+
+            // POST 文档解析（仅 Gemini）：pdfUrl + prompt，返回解析结果
+            server.middlewares.use('/api/parse-document', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(body || '{}') as { pdfUrl?: string; prompt?: string };
+                  const pdfUrl = parsed.pdfUrl?.trim();
+                  const prompt = parsed.prompt?.trim();
+                  if (!pdfUrl || !prompt) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: '请提供 pdfUrl 和 prompt' }));
+                    return;
+                  }
+                  const { parseDocument } = await import('./services/llm_gemini');
+                  const text = await parseDocument(pdfUrl, prompt);
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: true, text }));
+                } catch (err: any) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: false, message: err?.message || '文档解析失败' }));
                 }
               });
             });
