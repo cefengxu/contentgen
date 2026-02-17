@@ -125,27 +125,32 @@ export default defineConfig(({ mode }) => {
               if (req.method !== 'POST') return next();
               let body = '';
               req.on('data', (chunk) => { body += chunk; });
-              req.on('end', async () => {
-                try {
-                  const parsed = JSON.parse(body || '{}') as { pdfUrl?: string; prompt?: string };
-                  const pdfUrl = parsed.pdfUrl?.trim();
-                  const prompt = parsed.prompt?.trim();
-                  if (!pdfUrl || !prompt) {
-                    res.statusCode = 400;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ success: false, message: '请提供 pdfUrl 和 prompt' }));
-                    return;
+              req.on('end', () => {
+                const send = (status: number, payload: { success: boolean; text?: string; message?: string }) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as { pdfUrl?: string; prompt?: string };
+                    const pdfUrl = parsed.pdfUrl?.trim();
+                    const prompt = parsed.prompt?.trim();
+                    if (!pdfUrl || !prompt) {
+                      send(400, { success: false, message: '请提供 pdfUrl 和 prompt' });
+                      return;
+                    }
+                    const { parseDocument } = await import('./services/llm_gemini');
+                    const text = await parseDocument(pdfUrl, prompt);
+                    send(200, { success: true, text: text ?? '' });
+                  } catch (err: any) {
+                    console.error('[parse-document]', err);
+                    send(500, { success: false, message: err?.message || '文档解析失败' });
                   }
-                  const { parseDocument } = await import('./services/llm_gemini');
-                  const text = await parseDocument(pdfUrl, prompt);
-                  res.statusCode = 200;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: true, text }));
-                } catch (err: any) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, message: err?.message || '文档解析失败' }));
-                }
+                })().catch((err: any) => {
+                  console.error('[parse-document] unhandled', err);
+                  send(500, { success: false, message: err?.message || '文档解析失败' });
+                });
               });
             });
 

@@ -177,7 +177,16 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfUrl: docPdfUrl.trim(), prompt: docPrompt.trim() }),
       });
-      const data = await resp.json() as { success: boolean; text?: string; message?: string };
+      const rawText = await resp.text();
+      if (!rawText?.trim()) {
+        throw new Error(resp.ok ? '服务器返回空响应，请重试。' : `请求失败 (${resp.status})，请检查网络或稍后重试。`);
+      }
+      let data: { success: boolean; text?: string; message?: string };
+      try {
+        data = JSON.parse(rawText) as { success: boolean; text?: string; message?: string };
+      } catch {
+        throw new Error(resp.ok ? '服务器返回格式异常，请重试。' : `请求失败 (${resp.status})：${rawText.slice(0, 100)}`);
+      }
       if (!data.success || !data.text) {
         throw new Error(data.message || '文档解析失败');
       }
