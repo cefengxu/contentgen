@@ -44,10 +44,10 @@ const LLM_PROVIDER_PRESETS: { label: string; value: LLMProvider }[] = [
 // 文档结构化默认解析指令(用户可自由修改)
 const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
 
-请从用户提供的文档中提取“完整的结构结构化信息”。请严格遵循以下要求：
+请从用户提供的文档中提取“完整的结构结构化信息”。请严格遵循以下要求:
 
 【解析要求】
-1. 识别文档的全部结构，包括但不限于：
+1. 识别文档的全部结构,包括但不限于:
    - 一级标题
    - 二级/三级标题
    - 段落
@@ -57,19 +57,19 @@ const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
 2. 保证章节的“层级关系“准确无误。
 
 【抽取内容要求】
-对于每一个结构单元，请输出以下字段：
-- type(如：title / section / paragraph / list / table 等)
+对于每一个结构单元,请输出以下字段:
+- type(如:title / section / paragraph / list / table 等)
 - level(如 1、2、3 级标题)
 - title(若有)
 - content(原文或部分摘要)
 - children(如包含子结构) 
 
 【鲁棒性要求】
-- 文档可能格式混乱、换行不规范、层级缺失；请自动纠正并构建最佳结构化输出。
+- 文档可能格式混乱、换行不规范、层级缺失;请自动纠正并构建最佳结构化输出。
 - 不要遗漏任何信息。
-- 不要进行主观扩写，只提取实际内容。
+- 不要进行主观扩写,只提取实际内容。
 
-你的目标是： **生成一份准确、完整、可用于程序处理的文档结构化结果。**`;
+你的目标是: **生成一份准确、完整、可用于程序处理的文档结构化结果。**`;
 
 const App: React.FC = () => {
   const [keyword, setKeyword] = useState('');
@@ -91,7 +91,7 @@ const App: React.FC = () => {
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
-  /** 弹窗内模态：PDF 文档解析 | 原文本生成文章 */
+  /** 弹窗内模态:PDF 文档解析 | 原文本生成文章 */
   const [docModalMode, setDocModalMode] = useState<'pdf' | 'rawText'>('pdf');
   /** 原文本生成文章时的原始文本输入 */
   const [docRawText, setDocRawText] = useState('');
@@ -109,7 +109,7 @@ const App: React.FC = () => {
       const { text: rawData, sources } = await fetchGlobalContext(keyword, engine);
       
       if (!rawData) {
-        throw new Error('未能获取到任何有效信息，请检查关键词或 API 额度。');
+        throw new Error('未能获取到任何有效信息,请检查关键词或 API 额度。');
       }
 
       setStatus(AppStatus.GENERATING);
@@ -118,7 +118,7 @@ const App: React.FC = () => {
         ? await generateArticleGemini(keyword, rawData, options)
         : await generateArticle(keyword, rawData, options);
 
-      // 为生成的文章增加 Front-matter，并随机选择封面
+      // 为生成的文章增加 Front-matter,并随机选择封面
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
@@ -140,7 +140,7 @@ const App: React.FC = () => {
 
       if (!saveResp.ok) {
         const msg = await saveResp.text();
-        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+        throw new Error(msg || '保存 Markdown 文件失败,请稍后重试。');
       }
       const saveData = await saveResp.json() as { filename?: string };
       if (saveData.filename) setSavedFilename(saveData.filename);
@@ -153,7 +153,7 @@ const App: React.FC = () => {
       setStatus(AppStatus.COMPLETED);
     } catch (err: any) {
       console.error('Process Error:', err);
-      setError(err.message || '发生未知错误，请重试。');
+      setError(err.message || '发生未知错误,请重试。');
       setStatus(AppStatus.ERROR);
     }
   };
@@ -161,7 +161,7 @@ const App: React.FC = () => {
   const handleParseDocument = async () => {
     if (!docPdfUrl.trim() || !docPrompt.trim()) return;
 
-    // 文档解析采用与「立即整合」相同的生成与保存流程，只是数据来源改为 PDF
+    // 文档解析采用与「立即整合」相同的生成与保存流程,只是数据来源改为 PDF
     setStatus(AppStatus.GENERATING);
     setError(null);
     setArticle(null);
@@ -171,7 +171,7 @@ const App: React.FC = () => {
     setDocParseError(null);
 
     try {
-      // 第一步：调用后端 API，用 Gemini 解析 PDF，获得原始文本/摘要
+      // 第一步:调用后端 API,用 Gemini 解析 PDF,获得原始文本/摘要
       const resp = await fetch('/api/parse-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,13 +179,13 @@ const App: React.FC = () => {
       });
       const rawText = await resp.text();
       if (!rawText?.trim()) {
-        throw new Error(resp.ok ? '服务器返回空响应，请重试。' : `请求失败 (${resp.status})，请检查网络或稍后重试。`);
+        throw new Error(resp.ok ? '服务器返回空响应,请重试。' : `请求失败 (${resp.status}),请检查网络或稍后重试。`);
       }
       let data: { success: boolean; text?: string; message?: string };
       try {
         data = JSON.parse(rawText) as { success: boolean; text?: string; message?: string };
       } catch {
-        throw new Error(resp.ok ? '服务器返回格式异常，请重试。' : `请求失败 (${resp.status})：${rawText.slice(0, 100)}`);
+        throw new Error(resp.ok ? '服务器返回格式异常,请重试。' : `请求失败 (${resp.status}):${rawText.slice(0, 100)}`);
       }
       if (!data.success || !data.text) {
         throw new Error(data.message || '文档解析失败');
@@ -193,7 +193,7 @@ const App: React.FC = () => {
 
       const rawDataFromPdf = data.text;
 
-      // 第二步：沿用 llm_gemini.ts 中的系统提示与生成逻辑，直接用 Gemini 写文章
+      // 第二步:沿用 llm_gemini.ts 中的系统提示与生成逻辑,直接用 Gemini 写文章
       const options: GenerationOptions = { audience, length, style, engine, provider };
       const usedKeyword = keyword.trim() || 'PDF 文档';
       const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
@@ -219,7 +219,7 @@ const App: React.FC = () => {
 
       if (!saveResp.ok) {
         const msg = await saveResp.text();
-        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+        throw new Error(msg || '保存 Markdown 文件失败,请稍后重试。');
       }
       const saveData = await saveResp.json() as { filename?: string };
       if (saveData.filename) setSavedFilename(saveData.filename);
@@ -239,7 +239,7 @@ const App: React.FC = () => {
       setDocParseStatus('idle');
     } catch (e: any) {
       console.error('Doc Parse Error:', e);
-      const msg = e?.message || '文档解析或写作失败，请重试。';
+      const msg = e?.message || '文档解析或写作失败,请重试。';
       setError(msg);
       setDocParseError(msg);
       setStatus(AppStatus.ERROR);
@@ -247,7 +247,7 @@ const App: React.FC = () => {
     }
   };
 
-  /** 原文本生成文章：用户输入的文本直接作为 rawData 传入生成逻辑 */
+  /** 原文本生成文章:用户输入的文本直接作为 rawData 传入生成逻辑 */
   const handleGenerateFromRawText = async () => {
     if (!docRawText.trim()) return;
 
@@ -284,7 +284,7 @@ const App: React.FC = () => {
 
       if (!saveResp.ok) {
         const msg = await saveResp.text();
-        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+        throw new Error(msg || '保存 Markdown 文件失败,请稍后重试。');
       }
       const saveData = await saveResp.json() as { filename?: string };
       if (saveData.filename) setSavedFilename(saveData.filename);
@@ -300,7 +300,7 @@ const App: React.FC = () => {
       setDocParseStatus('idle');
     } catch (e: any) {
       console.error('Raw Text Generate Error:', e);
-      const msg = e?.message || '文章生成失败，请重试。';
+      const msg = e?.message || '文章生成失败,请重试。';
       setError(msg);
       setDocParseError(msg);
       setStatus(AppStatus.ERROR);
@@ -321,7 +321,7 @@ const App: React.FC = () => {
         body: JSON.stringify({ content: article.content }),
       });
       if (!saveResp.ok) {
-        setPublishResult({ success: false, message: '保存失败，无法发布' });
+        setPublishResult({ success: false, message: '保存失败,无法发布' });
         return;
       }
       const saveData = await saveResp.json() as { filename?: string };
@@ -329,7 +329,7 @@ const App: React.FC = () => {
       if (filename) setSavedFilename(filename);
     }
     if (!filename) {
-      setPublishResult({ success: false, message: '无可发布文件，请先生成文章' });
+      setPublishResult({ success: false, message: '无可发布文件,请先生成文章' });
       return;
     }
     
@@ -386,7 +386,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex flex-col w-full md:w-auto gap-3">
-            {/* 第一行：模型 / 搜索引擎 / 读者 / 风格 / 长度 + 两个按钮 */}
+            {/* 第一行:模型 / 搜索引擎 / 读者 / 风格 / 长度 + 两个按钮 */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="flex flex-col gap-1 shrink-0">
                 <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
@@ -470,7 +470,7 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* 第二行：话题关键词 + 较长输入框 */}
+            {/* 第二行:话题关键词 + 较长输入框 */}
             <div className="flex flex-col gap-1 pt-3 border-t border-gray-100">
               <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">话题关键词</span>
               <input
@@ -496,8 +496,8 @@ const App: React.FC = () => {
                 <h2 className="text-sm font-bold text-gray-900">文档解析与写作(Gemini)</h2>
                 <p className="text-xs text-gray-500 mt-1">
                   {docModalMode === 'pdf'
-                    ? '输入 PDF 链接并调整解析指令，解析结果将按当前读者与风格生成文章。'
-                    : '粘贴或输入原始文本，将直接作为素材按当前读者与风格生成文章。'}
+                    ? '输入 PDF 链接并调整解析指令,解析结果将按当前读者与风格生成文章。'
+                    : '粘贴或输入原始文本,将直接作为素材按当前读者与风格生成文章。'}
                 </p>
               </div>
               <button
@@ -512,7 +512,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* 模态切换：PDF 文档解析 | 原文本生成文章 */}
+              {/* 模态切换:PDF 文档解析 | 原文本生成文章 */}
               <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
                 <button
                   type="button"
@@ -542,15 +542,15 @@ const App: React.FC = () => {
                 <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block">当前将用于生成文章的设置</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-700">
                   <div>
-                    <span className="text-gray-400">读者人群：</span>
+                    <span className="text-gray-400">读者人群:</span>
                     <span className="font-medium">{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">文章风格：</span>
+                    <span className="text-gray-400">文章风格:</span>
                     <span className="font-medium">{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">目标长度：</span>
+                    <span className="text-gray-400">目标长度:</span>
                     <span className="font-medium">{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</span>
                   </div>
                 </div>
@@ -579,7 +579,7 @@ const App: React.FC = () => {
                       disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
                     />
                     <p className="mt-1 text-[11px] text-gray-400">
-                      默认提示词已针对「文档结构化解析」优化，你也可以根据具体文档类型微调要求。
+                      默认提示词已针对「文档结构化解析」优化,你也可以根据具体文档类型微调要求。
                     </p>
                   </label>
                 </>
@@ -590,12 +590,12 @@ const App: React.FC = () => {
                     value={docRawText}
                     onChange={(e) => setDocRawText(e.target.value)}
                     rows={12}
-                    placeholder="在此粘贴或输入原始文本，内容将直接作为「抓取内容」传入模型生成文章…"
+                    placeholder="在此粘贴或输入原始文本,内容将直接作为「抓取内容」传入模型生成文章…"
                     className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
                     disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
                   />
                   <p className="mt-1 text-[11px] text-gray-400">
-                    此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章，无需先解析 PDF。
+                    此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章,无需先解析 PDF。
                   </p>
                 </label>
               )}
@@ -682,8 +682,8 @@ const App: React.FC = () => {
             </div>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">多风格全球事实整合</h2>
             <p className="text-gray-500 max-w-xl mx-auto leading-relaxed text-lg">
-              集成了 Tavily 与 Exa 双搜索引擎，支持自动容错重试。
-              提供 11 种专业文风与多维度的读者人群定制，确保信息硬核、准确且易读。
+              集成了 Tavily 与 Exa 双搜索引擎,支持自动容错重试。
+              提供 11 种专业文风与多维度的读者人群定制,确保信息硬核、准确且易读。
             </p>
           </div>
         )}
@@ -702,7 +702,7 @@ const App: React.FC = () => {
                 {status === AppStatus.SEARCHING ? `正在使用 ${engine} 检索事实数据...` : `正在使用 ${provider} 进行多风格整合写作...`}
               </h3>
               <p className="text-gray-400 max-w-sm mx-auto text-sm leading-relaxed">
-                正在执行严格的自检流程：核实数字单位、动词驱动优化、短句混排自适应。
+                正在执行严格的自检流程:核实数字单位、动词驱动优化、短句混排自适应。
               </p>
             </div>
           </div>
@@ -735,7 +735,7 @@ const App: React.FC = () => {
             <ArticleDisplay content={article.content} sources={article.sources} />
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10 max-w-4xl mx-auto mt-8 transition-all">
               <h3 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-50 pb-4">发布到微信公众号</h3>
-              <p className="text-sm text-gray-500 mb-6">填写公众号配置后点击「确认发布到微信」，文章将上传至该公众号草稿箱。</p>
+              <p className="text-sm text-gray-500 mb-6">填写公众号配置后点击「确认发布到微信」,文章将上传至该公众号草稿箱。</p>
               <div className="space-y-4 mb-6">
                 <label className="block">
                   <span className="text-sm font-semibold text-gray-700 mb-1.5 block">WECHAT_APP_ID</span>

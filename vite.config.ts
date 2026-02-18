@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port,
         host: '0.0.0.0',
-        // 避免保存生成的文章到 medias/docs 时触发文件监听，导致页面自动刷新
+        // 避免保存生成的文章到 medias/docs 时触发文件监听,导致页面自动刷新
         watch: {
           ignored: ['**/medias/**'],
         },
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
         {
           name: 'log-env',
           configureServer() {
-            // 把 .env / .env.local 等已加载的变量同步到 process.env，供服务端中间件和 API 使用
+            // 把 .env / .env.local 等已加载的变量同步到 process.env,供服务端中间件和 API 使用
             for (const [k, v] of Object.entries(env)) {
               if (v != null && v !== '' && (process.env[k] == null || process.env[k] === '')) {
                 process.env[k] = v;
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
             console.log('  LLM_MODEL:', env.LLM_MODEL || 'gpt-3.5-turbo');
             console.log('  GEMINI_API_KEY:', env.GEMINI_API_KEY ? '已设置' : '(未设置)');
             console.log('  GEMINI_MODEL:', env.GEMINI_MODEL || 'gemini-2.0-flash');
-            console.log('  LLM_GEMINI_API_BASE_URL:', env.LLM_GEMINI_API_BASE_URL || '(未设置，使用官方)');
+            console.log('  LLM_GEMINI_API_BASE_URL:', env.LLM_GEMINI_API_BASE_URL || '(未设置,使用官方)');
             console.log('  配置有效:', hasLlm ? '是' : '否(请检查 .env.local)');
             console.log('  端口:', port);
             console.log('');
@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
           configureServer(server) {
             const outputDir = path.resolve(__dirname, 'medias/docs');
 
-            // GET 微信配置(用于前端展示默认值，可按需脱敏)
+            // GET 微信配置(用于前端展示默认值,可按需脱敏)
             server.middlewares.use('/api/wechat-config', (req, res, next) => {
               if (req.method !== 'GET') return next();
               res.statusCode = 200;
@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
               }));
             });
 
-            // POST 使用指定微信参数执行 wenyan 发布，并返回执行结果
+            // POST 使用指定微信参数执行 wenyan 发布,并返回执行结果
             server.middlewares.use('/api/publish', (req, res, next) => {
               if (req.method !== 'POST') return next();
 
@@ -86,14 +86,14 @@ export default defineConfig(({ mode }) => {
                   const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
                   console.log('[publish] 执行命令:', cmd);
 
-                  // 启动子进程但不等待结果，后台执行
+                  // 启动子进程但不等待结果,后台执行
                   exec(cmd, {
                     env,
                     cwd: __dirname,
                     timeout: 120000,
                     maxBuffer: 10 * 1024 * 1024,
                   }, (error, stdout, stderr) => {
-                    // 这个回调在后台执行，仅用于日志记录
+                    // 这个回调在后台执行,仅用于日志记录
                     if (error) {
                       console.error('[publish] wenyan-cli 执行失败:', error.message);
                       if (stdout) console.log('[publish] stdout:', stdout);
@@ -105,12 +105,12 @@ export default defineConfig(({ mode }) => {
                     }
                   });
 
-                  // 立即返回成功响应，不等待命令执行完成
+                  // 立即返回成功响应,不等待命令执行完成
                   res.statusCode = 200;
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify({
                     success: true,
-                    message: '文章已发送，预计 5 分钟后可在后台查看。',
+                    message: '文章已发送,预计 5 分钟后可在后台查看。',
                   }));
                 } catch (err: any) {
                   res.statusCode = 500;
@@ -120,7 +120,7 @@ export default defineConfig(({ mode }) => {
               });
             });
 
-            // POST 文档解析(仅 Gemini)：pdfUrl + prompt，返回解析结果
+            // POST 文档解析(仅 Gemini):pdfUrl + prompt,返回解析结果
             server.middlewares.use('/api/parse-document', (req, res, next) => {
               if (req.method !== 'POST') return next();
               let body = '';

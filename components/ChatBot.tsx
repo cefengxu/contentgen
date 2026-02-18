@@ -44,7 +44,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ keyword, context, provider = 'OpenAI'
       const result = await chatRef.current.sendMessage({ message: userMsg });
       setMessages(prev => [...prev, { role: 'model', text: result.text || '无法回答此问题。' }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: '抱歉，连接出现了一点问题。' }]);
+      setMessages(prev => [...prev, { role: 'model', text: '抱歉,连接出现了一点问题。' }]);
     } finally {
       setIsTyping(false);
     }

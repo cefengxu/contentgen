@@ -105,7 +105,7 @@ export const fetchGlobalContext = async (keyword: string, engine: SearchEngine):
     try {
       return await performFetch(secondary);
     } catch (err2) {
-      throw new Error(`检索失败：${primary} 及备用 ${secondary} 均不可用。`);
+      throw new Error(`检索失败:${primary} 及备用 ${secondary} 均不可用。`);
     }
   }
 };
