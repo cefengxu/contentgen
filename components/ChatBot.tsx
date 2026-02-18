@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, LLMProvider } from '../types';
-import { createChatSession } from '../services/llm';
+import { createChatSession } from '../services/llm_openai';
 import { createChatSession as createChatSessionGemini } from '../services/llm_gemini';
 
 interface ChatBotProps {

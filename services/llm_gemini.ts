@@ -12,7 +12,7 @@ const getGeminiConfig = () => {
   return { apiKey, model, baseUrl: baseUrl || undefined };
 };
 
-/** 与 llm.ts 一致的对话消息格式(用于 chatCompletions) */
+/** 与 llm_openai.ts 一致的对话消息格式(用于 chatCompletions) */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -111,7 +111,7 @@ export const chatCompletions = async (messages: ChatMessage[]): Promise<string> 
   return response.text ?? '';
 }
 
-/** 与 llm.ts 一致的 system 指令模板(用于 generateArticle) */
+/** 与 llm_openai.ts 一致的 system 指令模板(用于 generateArticle) */
 function buildArticleSystemInstruction(rawData: string, options: GenerationOptions): string {
   return `## 系统指令
 你是严格执行指令的自动化内容整合代理。

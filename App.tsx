@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
-import { generateArticle } from './services/llm';
+import { generateArticle } from './services/llm_openai';
 import { generateArticle as generateArticleGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
