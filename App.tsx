@@ -95,6 +95,10 @@ const App: React.FC = () => {
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  /** 弹窗内模态：PDF 文档解析 | 原文本生成文章 */
+  const [docModalMode, setDocModalMode] = useState<'pdf' | 'rawText'>('pdf');
+  /** 原文本生成文章时的原始文本输入 */
+  const [docRawText, setDocRawText] = useState('');
 
   const handleStartProcess = async () => {
     if (!keyword.trim()) return;
@@ -240,6 +244,67 @@ const App: React.FC = () => {
     } catch (e: any) {
       console.error('Doc Parse Error:', e);
       const msg = e?.message || '文档解析或写作失败，请重试。';
+      setError(msg);
+      setDocParseError(msg);
+      setStatus(AppStatus.ERROR);
+      setDocParseStatus('error');
+    }
+  };
+
+  /** 原文本生成文章：用户输入的文本直接作为 rawData 传入生成逻辑 */
+  const handleGenerateFromRawText = async () => {
+    if (!docRawText.trim()) return;
+
+    setStatus(AppStatus.GENERATING);
+    setError(null);
+    setArticle(null);
+    setSavedFilename(null);
+    setPublishResult(null);
+    setDocParseStatus('loading');
+    setDocParseError(null);
+
+    try {
+      const options: GenerationOptions = { audience, length, style, engine, provider };
+      const usedKeyword = keyword.trim() || '原文本文章';
+      const generatedContent = await generateArticleGemini(usedKeyword, docRawText.trim(), options);
+
+      const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
+      const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
+      const frontMatterLines = [
+        '---',
+        `title: ${usedKeyword}`,
+        'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
+        '---',
+        '',
+      ];
+      const frontMatter = frontMatterLines.join('\n');
+      const finalContent = frontMatter + generatedContent.trimStart();
+
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalContent }),
+      });
+
+      if (!saveResp.ok) {
+        const msg = await saveResp.text();
+        throw new Error(msg || '保存 Markdown 文件失败，请稍后重试。');
+      }
+      const saveData = await saveResp.json() as { filename?: string };
+      if (saveData.filename) setSavedFilename(saveData.filename);
+
+      setArticle({
+        title: usedKeyword,
+        content: finalContent,
+        sources: [],
+      });
+
+      setStatus(AppStatus.COMPLETED);
+      setIsDocModalOpen(false);
+      setDocParseStatus('idle');
+    } catch (e: any) {
+      console.error('Raw Text Generate Error:', e);
+      const msg = e?.message || '文章生成失败，请重试。';
       setError(msg);
       setDocParseError(msg);
       setStatus(AppStatus.ERROR);
@@ -404,7 +469,7 @@ const App: React.FC = () => {
                   disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
                   className="bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-100 disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5 whitespace-nowrap"
                 >
-                  PDF 文档解析
+                  多模态解析
                 </button>
               )}
             </div>
@@ -426,15 +491,17 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* PDF 文档解析弹窗（仅 Gemini） */}
+      {/* PDF 文档解析 / 原文本生成文章 弹窗（仅 Gemini） */}
       {provider === 'Gemini' && isDocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl mx-4">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-sm font-bold text-gray-900">PDF 文档解析（Gemini）</h2>
+                <h2 className="text-sm font-bold text-gray-900">文档解析与写作（Gemini）</h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  输入 PDF 链接，并按需调整解析指令。解析结果将按照当前读者人群与文章风格生成文章。
+                  {docModalMode === 'pdf'
+                    ? '输入 PDF 链接并调整解析指令，解析结果将按当前读者与风格生成文章。'
+                    : '粘贴或输入原始文本，将直接作为素材按当前读者与风格生成文章。'}
                 </p>
               </div>
               <button
@@ -449,6 +516,32 @@ const App: React.FC = () => {
             </div>
 
             <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* 模态切换：PDF 文档解析 | 原文本生成文章 */}
+              <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setDocModalMode('pdf')}
+                  className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    docModalMode === 'pdf'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  PDF 文档解析
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocModalMode('rawText')}
+                  className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    docModalMode === 'rawText'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  原文本生成文章
+                </button>
+              </div>
+
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
                 <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block">当前将用于生成文章的设置</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-700">
@@ -467,31 +560,49 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-700 mb-1.5 block">PDF 下载链接</span>
-                <input
-                  type="url"
-                  value={docPdfUrl}
-                  onChange={(e) => setDocPdfUrl(e.target.value)}
-                  placeholder="https://example.com/document.pdf"
-                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-700 mb-1.5 block">解析指令（可直接编辑）</span>
-                <textarea
-                  value={docPrompt}
-                  onChange={(e) => setDocPrompt(e.target.value)}
-                  rows={10}
-                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[10rem]"
-                  disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
-                />
-                <p className="mt-1 text-[11px] text-gray-400">
-                  默认提示词已针对「文档结构化解析」优化，你也可以根据具体文档类型微调要求。
-                </p>
-              </label>
+              {docModalMode === 'pdf' ? (
+                <>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">PDF 下载链接</span>
+                    <input
+                      type="url"
+                      value={docPdfUrl}
+                      onChange={(e) => setDocPdfUrl(e.target.value)}
+                      placeholder="https://example.com/document.pdf"
+                      className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">解析指令（可直接编辑）</span>
+                    <textarea
+                      value={docPrompt}
+                      onChange={(e) => setDocPrompt(e.target.value)}
+                      rows={10}
+                      className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[10rem]"
+                      disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                    />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      默认提示词已针对「文档结构化解析」优化，你也可以根据具体文档类型微调要求。
+                    </p>
+                  </label>
+                </>
+              ) : (
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本（将作为抓取内容传入生成）</span>
+                  <textarea
+                    value={docRawText}
+                    onChange={(e) => setDocRawText(e.target.value)}
+                    rows={12}
+                    placeholder="在此粘贴或输入原始文本，内容将直接作为「抓取内容」传入模型生成文章…"
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
+                    disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章，无需先解析 PDF。
+                  </p>
+                </label>
+              )}
 
               {docParseStatus === 'error' && docParseError && (
                 <div className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[11px] text-red-700">
@@ -509,30 +620,56 @@ const App: React.FC = () => {
               >
                 取消
               </button>
-              <button
-                type="button"
-                onClick={handleParseDocument}
-                disabled={
-                  !docPdfUrl.trim() ||
-                  !docPrompt.trim() ||
-                  docParseStatus === 'loading' ||
-                  status === AppStatus.GENERATING ||
-                  status === AppStatus.SEARCHING
-                }
-                className="bg-indigo-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
-              >
-                {docParseStatus === 'loading' ? (
-                  <>
-                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    解析并生成文章
-                  </>
-                ) : (
-                  '解析并生成文章'
-                )}
-              </button>
+              {docModalMode === 'pdf' ? (
+                <button
+                  type="button"
+                  onClick={handleParseDocument}
+                  disabled={
+                    !docPdfUrl.trim() ||
+                    !docPrompt.trim() ||
+                    docParseStatus === 'loading' ||
+                    status === AppStatus.GENERATING ||
+                    status === AppStatus.SEARCHING
+                  }
+                  className="bg-indigo-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                >
+                  {docParseStatus === 'loading' ? (
+                    <>
+                      <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      解析并生成文章
+                    </>
+                  ) : (
+                    '解析并生成文章'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGenerateFromRawText}
+                  disabled={
+                    !docRawText.trim() ||
+                    docParseStatus === 'loading' ||
+                    status === AppStatus.GENERATING ||
+                    status === AppStatus.SEARCHING
+                  }
+                  className="bg-indigo-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                >
+                  {docParseStatus === 'loading' ? (
+                    <>
+                      <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      生成文章
+                    </>
+                  ) : (
+                    '生成文章'
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
