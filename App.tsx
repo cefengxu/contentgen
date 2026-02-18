@@ -10,23 +10,19 @@ import ChatBot from './components/ChatBot';
 const AUDIENCE_PRESETS = [
   { label: '泛科技读者 (一般)', value: '泛科技读者, 背景知识一般, 关注点优先级: 行业应用 > 技术特性, 语气自然, 行话密度中' },
   { label: '专业工程师 (深度)', value: '资深工程师, 背景知识专业, 关注点优先级: 技术特性 > 如何实现, 语气冷静客观, 行话密度高' },
-  { label: 'K12 教师', value: 'K12教师（小学/初中/高中）, 背景知识可覆盖入门到专业, 关注点优先级: 行业应用 > 技术特性, 语气亲切到专业均可, 行话密度低到中' },
+  { label: 'K12 教师', value: 'K12教师(小学/初中/高中), 背景知识可覆盖入门到专业, 关注点优先级: 行业应用 > 技术特性, 语气亲切到专业均可, 行话密度低到中' },
   { label: '产品经理 (商业)', value: '产品经理, 背景知识一般, 关注点优先级: 市场与生态 > 行业应用, 语气专业冷静, 行话密度中' },
   { label: '券商分析师 (严谨)', value: '券商分析师, 背景知识专业, 关注点优先级: 市场与生态 > 合规与风险, 语气专业冷静, 行话密度中' },
 ];
 
 const STYLE_PRESETS = [
   { label: '科普 + 故事开场 (默认)', value: '科普+故事开场' },
-  { label: '新闻快讯', value: '新闻快讯' },
   { label: '深度解析', value: '深度解析' },
   { label: '案例研究', value: '案例研究' },
-  { label: '数据观察', value: '数据观察' },
-  { label: '访谈纪要', value: '访谈纪要' },
-  { label: '时间线', value: '时间线' },
-  { label: '事实核查', value: '事实核查' },
-  { label: '行业简报', value: '行业简报' },
-  { label: '产品测评', value: '产品测评' },
-  { label: '半佛体 (Banfo)', value: '半佛体（Banfo）' },
+  { label: '反转体(The Truth-Slapper)', value: '反转体(The Truth-Slapper)' },
+  { label: '拆解体(The Dissector)', value: '拆解体(The Dissector)' },
+  { label: '破壳体(Shell-Breaker)', value: '破壳体(Shell-Breaker)' },
+  { label: '半佛体 (Banfo)', value: '半佛体(Banfo)' },
 ];
 
 const LENGTH_PRESETS = [
@@ -45,7 +41,7 @@ const LLM_PROVIDER_PRESETS: { label: string; value: LLMProvider }[] = [
   { label: 'Gemini', value: 'Gemini' },
 ];
 
-// 文档结构化默认解析指令（用户可自由修改）
+// 文档结构化默认解析指令(用户可自由修改)
 const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
 
 请从用户提供的文档中提取“完整的结构结构化信息”。请严格遵循以下要求：
@@ -55,18 +51,18 @@ const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
    - 一级标题
    - 二级/三级标题
    - 段落
-   - 列表（有序/无序）
-   - 表格（以结构描述方式提取）
-   - 图表（提供说明文字）
+   - 列表(有序/无序)
+   - 表格(以结构描述方式提取)
+   - 图表(提供说明文字)
 2. 保证章节的“层级关系“准确无误。
 
 【抽取内容要求】
 对于每一个结构单元，请输出以下字段：
-- type（如：title / section / paragraph / list / table 等）
-- level（如 1、2、3 级标题）
-- title（若有）
-- content（原文或部分摘要）
-- children（如包含子结构） 
+- type(如：title / section / paragraph / list / table 等)
+- level(如 1、2、3 级标题)
+- title(若有)
+- content(原文或部分摘要)
+- children(如包含子结构) 
 
 【鲁棒性要求】
 - 文档可能格式混乱、换行不规范、层级缺失；请自动纠正并构建最佳结构化输出。
@@ -89,7 +85,7 @@ const App: React.FC = () => {
   const [wechatAppId, setWechatAppId] = useState('');
   const [wechatAppSecret, setWechatAppSecret] = useState('');
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
-  // 文档解析（仅 Gemini）
+  // 文档解析(仅 Gemini)
   const [docPdfUrl, setDocPdfUrl] = useState('');
   const [docPrompt, setDocPrompt] = useState(DEFAULT_DOC_PROMPT);
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -491,13 +487,13 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* PDF 文档解析 / 原文本生成文章 弹窗（仅 Gemini） */}
+      {/* PDF 文档解析 / 原文本生成文章 弹窗(仅 Gemini) */}
       {provider === 'Gemini' && isDocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl mx-4">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-sm font-bold text-gray-900">文档解析与写作（Gemini）</h2>
+                <h2 className="text-sm font-bold text-gray-900">文档解析与写作(Gemini)</h2>
                 <p className="text-xs text-gray-500 mt-1">
                   {docModalMode === 'pdf'
                     ? '输入 PDF 链接并调整解析指令，解析结果将按当前读者与风格生成文章。'
@@ -574,7 +570,7 @@ const App: React.FC = () => {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">解析指令（可直接编辑）</span>
+                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">解析指令(可直接编辑)</span>
                     <textarea
                       value={docPrompt}
                       onChange={(e) => setDocPrompt(e.target.value)}
@@ -589,7 +585,7 @@ const App: React.FC = () => {
                 </>
               ) : (
                 <label className="block">
-                  <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本（将作为抓取内容传入生成）</span>
+                  <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本(将作为抓取内容传入生成)</span>
                   <textarea
                     value={docRawText}
                     onChange={(e) => setDocRawText(e.target.value)}
@@ -791,7 +787,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
             <span className="font-bold text-gray-500 text-sm">Dual Search: Tavily & Exa</span>
           </div>
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.20260218</p>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.20260218.style</p>
         </div>
       </footer>
     </div>

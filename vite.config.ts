@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
             console.log('  GEMINI_API_KEY:', env.GEMINI_API_KEY ? '已设置' : '(未设置)');
             console.log('  GEMINI_MODEL:', env.GEMINI_MODEL || 'gemini-2.0-flash');
             console.log('  LLM_GEMINI_API_BASE_URL:', env.LLM_GEMINI_API_BASE_URL || '(未设置，使用官方)');
-            console.log('  配置有效:', hasLlm ? '是' : '否（请检查 .env.local）');
+            console.log('  配置有效:', hasLlm ? '是' : '否(请检查 .env.local)');
             console.log('  端口:', port);
             console.log('');
           },
@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
           configureServer(server) {
             const outputDir = path.resolve(__dirname, 'medias/docs');
 
-            // GET 微信配置（用于前端展示默认值，可按需脱敏）
+            // GET 微信配置(用于前端展示默认值，可按需脱敏)
             server.middlewares.use('/api/wechat-config', (req, res, next) => {
               if (req.method !== 'GET') return next();
               res.statusCode = 200;
@@ -120,7 +120,7 @@ export default defineConfig(({ mode }) => {
               });
             });
 
-            // POST 文档解析（仅 Gemini）：pdfUrl + prompt，返回解析结果
+            // POST 文档解析(仅 Gemini)：pdfUrl + prompt，返回解析结果
             server.middlewares.use('/api/parse-document', (req, res, next) => {
               if (req.method !== 'POST') return next();
               let body = '';
