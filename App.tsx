@@ -382,7 +382,8 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-20 font-sans bg-gray-50 text-gray-900">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 py-4 px-4 sticky top-0 z-40 backdrop-blur-md bg-white/80">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-start gap-4 md:gap-6">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-3">
+          {/* Logo */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,67 +393,67 @@ const App: React.FC = () => {
             <h1 className="text-xl font-bold tracking-tight">Info.X</h1>
           </div>
 
-          <div className="flex flex-col w-full md:w-auto gap-3">
-            {/* 第一行:模型 / 读者 / 风格 / 长度 + 多模态解析(统一入口) */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="flex flex-col gap-1 shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
-                <select
-                  value={provider}
-                  onChange={(e) => setProvider(e.target.value as LLMProvider)}
-                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                >
-                  {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">读者人群</span>
-                <select 
-                  value={audience} 
-                  onChange={(e) => setAudience(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                >
-                  {AUDIENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">文章风格</span>
-                <select 
-                  value={style} 
-                  onChange={(e) => setStyle(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                >
-                  {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">目标长度</span>
-                <select 
-                  value={length} 
-                  onChange={(e) => setLength(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                >
-                  {LENGTH_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsDocModalOpen(true)}
-                disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5 whitespace-nowrap"
-              >
-                多模态解析
-              </button>
-            </div>
+          {/* 模型 / 读者 / 风格 / 长度 + 多模态解析, 与 Logo 同一行 */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-gray-400">模型</span>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as LLMProvider)}
+              className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+              disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+            >
+              {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
           </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-gray-400">读者人群</span>
+            <select 
+              value={audience} 
+              onChange={(e) => setAudience(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+              disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+            >
+              {AUDIENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-gray-400">文章风格</span>
+            <select 
+              value={style} 
+              onChange={(e) => setStyle(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+              disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+            >
+              {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-gray-400">目标长度</span>
+            <select 
+              value={length} 
+              onChange={(e) => setLength(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+              disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+            >
+              {LENGTH_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsDocModalOpen(true)}
+            disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
+            className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
+          >
+            生文
+          </button>
         </div>
       </header>
 
-      {/* 多模态解析配置弹窗(OpenAI / Gemini 统一入口) */}
+      {/* 生文析配置弹窗(OpenAI / Gemini 统一入口) */}
       {isDocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl mx-4">
