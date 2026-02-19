@@ -813,7 +813,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
             <span className="font-bold text-gray-500 text-sm">Dual Search: Tavily & Exa</span>
           </div>
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.20260218.style</p>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} v.20260219</p>
         </div>
       </footer>
     </div>
