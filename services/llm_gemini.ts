@@ -2,15 +2,15 @@ import { GoogleGenAI } from '@google/genai';
 import type { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
 
-/** 从环境变量读取的 Gemini 配置(支持智增增:base_url + api_key) */
+/** 从环境变量读取的 Gemini 配置；GEMINI_API_URL 为完整 base 地址，代码不拼接路径，由 SDK 追加 */
 const getGeminiConfig = () => {
   const apiKey = process.env.GEMINI_API_KEY || '';
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const baseUrl = (process.env.LLM_GEMINI_API_BASE_URL || '').replace(/\/$/, '');
+  const apiUrl = (process.env.GEMINI_API_URL || '').replace(/\/$/, '');
   if (!apiKey) {
     throw new Error('请在 .env 或环境变量中配置 GEMINI_API_KEY');
   }
-  return { apiKey, model, baseUrl: baseUrl || undefined };
+  return { apiKey, model, baseUrl: apiUrl || undefined };
 };
 
 /** 与 llm_openai.ts 一致的对话消息格式(用于 chatCompletions) */

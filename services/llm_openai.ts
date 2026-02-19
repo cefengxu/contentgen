@@ -1,15 +1,15 @@
 import { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
 
-/** 从环境变量读取的 LLM 配置 */
+/** 从环境变量读取的 OpenAI 兼容 API 配置（OPENAI_API_URL 为完整地址，无需拼接路径） */
 const getApiConfig = () => {
-  const baseUrl = (process.env.LLM_API_BASE_URL || '').replace(/\/$/, '');
-  const apiKey = process.env.LLM_API_KEY || '';
-  const model = process.env.LLM_MODEL || 'gpt-3.5-turbo';
-  if (!baseUrl || !apiKey) {
-    throw new Error('请在 .env 或环境变量中配置 LLM_API_BASE_URL 和 LLM_API_KEY');
+  const apiUrl = (process.env.OPENAI_API_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.OPENAI_API_KEY || '';
+  const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+  if (!apiUrl || !apiKey) {
+    throw new Error('请在 .env 或环境变量中配置 OPENAI_API_URL 和 OPENAI_API_KEY');
   }
-  return { baseUrl, apiKey, model };
+  return { apiUrl, apiKey, model };
 };
 
 /** OpenAI Chat Completions 请求体 */
@@ -34,11 +34,10 @@ interface ChatCompletionResponse {
 }
 
 const chatCompletions = async (messages: ChatMessage[], stream = false): Promise<string> => {
-  const { baseUrl, apiKey, model } = getApiConfig();
-  const url = `${baseUrl}/v1/chat/completions`;
+  const { apiUrl, apiKey, model } = getApiConfig();
   const body: ChatCompletionRequest = { model, messages, stream };
 
-  const res = await fetch(url, {
+  const res = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
