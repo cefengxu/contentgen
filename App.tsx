@@ -91,8 +91,8 @@ const App: React.FC = () => {
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
-  /** 弹窗内模态:PDF 文档解析 | 原文本生成文章 */
-  const [docModalMode, setDocModalMode] = useState<'pdf' | 'rawText'>('pdf');
+  /** 弹窗内模态:网络搜索 | PDF 文档解析 | 原文本生成文章 */
+  const [docModalMode, setDocModalMode] = useState<'search' | 'pdf' | 'rawText'>('search');
   /** 原文本生成文章时的原始文本输入 */
   const [docRawText, setDocRawText] = useState('');
 
@@ -247,7 +247,7 @@ const App: React.FC = () => {
     }
   };
 
-  /** 原文本生成文章:用户输入的文本直接作为 rawData 传入生成逻辑 */
+  /** 原文本生成文章:用户输入的文本直接作为 rawData 传入生成逻辑(按当前 provider 调用 OpenAI 或 Gemini) */
   const handleGenerateFromRawText = async () => {
     if (!docRawText.trim()) return;
 
@@ -262,7 +262,10 @@ const App: React.FC = () => {
     try {
       const options: GenerationOptions = { audience, length, style, engine, provider };
       const usedKeyword = keyword.trim() || '原文本文章';
-      const generatedContent = await generateArticleGemini(usedKeyword, docRawText.trim(), options);
+      const rawData = docRawText.trim();
+      const generatedContent = provider === 'Gemini'
+        ? await generateArticleGemini(usedKeyword, rawData, options)
+        : await generateArticle(usedKeyword, rawData, options);
 
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
@@ -361,6 +364,10 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
+    if (isDocModalOpen && provider === 'OpenAI' && docModalMode === 'pdf') setDocModalMode('search');
+  }, [isDocModalOpen, provider, docModalMode]);
+
+  useEffect(() => {
     if (status !== AppStatus.COMPLETED) return;
     fetch('/api/wechat-config')
       .then((r) => r.json())
@@ -386,7 +393,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex flex-col w-full md:w-auto gap-3">
-            {/* 第一行:模型 / 搜索引擎 / 读者 / 风格 / 长度 + 两个按钮 */}
+            {/* 第一行:模型 / 读者 / 风格 / 长度 + 多模态解析(统一入口) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="flex flex-col gap-1 shrink-0">
                 <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">模型</span>
@@ -397,17 +404,6 @@ const App: React.FC = () => {
                   disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
                 >
                   {LLM_PROVIDER_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">搜索引擎</span>
-                <select 
-                  value={engine} 
-                  onChange={(e) => setEngine(e.target.value as SearchEngine)}
-                  className="border border-gray-200 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                >
-                  {ENGINE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
@@ -444,60 +440,28 @@ const App: React.FC = () => {
                 </select>
               </div>
               <button
-                onClick={handleStartProcess}
-                disabled={!keyword.trim() || status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                className="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 shadow-md flex items-center justify-center gap-2 mt-auto sm:mt-5"
-              >
-                {(status === AppStatus.SEARCHING || status === AppStatus.GENERATING) ? (
-                  <>
-                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    处理中
-                  </>
-                ) : '立即整合'}
-              </button>
-              {provider === 'Gemini' && (
-                <button
-                  type="button"
-                  onClick={() => setIsDocModalOpen(true)}
-                  disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-                  className="bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-100 disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5 whitespace-nowrap"
-                >
-                  多模态解析
-                </button>
-              )}
-            </div>
-
-            {/* 第二行:话题关键词 + 较长输入框 */}
-            <div className="flex flex-col gap-1 pt-3 border-t border-gray-100">
-              <span className="text-[10px] uppercase font-bold text-gray-400 ml-1">话题关键词</span>
-              <input
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleStartProcess()}
-                placeholder="输入话题..."
-                className="border border-gray-200 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white w-full max-w-xl min-w-[16rem]"
+                type="button"
+                onClick={() => setIsDocModalOpen(true)}
                 disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
-              />
+                className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none mt-auto sm:mt-5 whitespace-nowrap"
+              >
+                多模态解析
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* PDF 文档解析 / 原文本生成文章 弹窗(仅 Gemini) */}
-      {provider === 'Gemini' && isDocModalOpen && (
+      {/* 多模态解析配置弹窗(OpenAI / Gemini 统一入口) */}
+      {isDocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl mx-4">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-sm font-bold text-gray-900">文档解析与写作(Gemini)</h2>
+                <h2 className="text-sm font-bold text-gray-900">多模态解析</h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  {docModalMode === 'pdf'
-                    ? '输入 PDF 链接并调整解析指令,解析结果将按当前读者与风格生成文章。'
-                    : '粘贴或输入原始文本,将直接作为素材按当前读者与风格生成文章。'}
+                  {provider === 'OpenAI' && '支持: 网络搜索、原文本生成文章。'}
+                  {provider === 'Gemini' && '支持: 网络搜索、PDF 文档解析、原文本生成文章。'}
                 </p>
               </div>
               <button
@@ -512,32 +476,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* 模态切换:PDF 文档解析 | 原文本生成文章 */}
-              <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={() => setDocModalMode('pdf')}
-                  className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
-                    docModalMode === 'pdf'
-                      ? 'bg-white text-indigo-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  PDF 文档解析
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDocModalMode('rawText')}
-                  className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
-                    docModalMode === 'rawText'
-                      ? 'bg-white text-indigo-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  原文本生成文章
-                </button>
-              </div>
-
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
                 <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block">当前将用于生成文章的设置</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-700">
@@ -556,7 +494,74 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {docModalMode === 'pdf' ? (
+              {/* 同级标签: 网络搜索 | PDF 文档解析(Gemini) | 原文本生成文章 */}
+              <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setDocModalMode('search')}
+                  className={`py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    docModalMode === 'search' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  网络搜索
+                </button>
+                {provider === 'Gemini' && (
+                  <button
+                    type="button"
+                    onClick={() => setDocModalMode('pdf')}
+                    className={`py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                      docModalMode === 'pdf' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    PDF 文档解析
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDocModalMode('rawText')}
+                  className={`py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    docModalMode === 'rawText' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  原文本生成文章
+                </button>
+              </div>
+
+              {docModalMode === 'search' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">搜索引擎（网络搜索）</span>
+                      <select
+                        value={engine}
+                        onChange={(e) => setEngine(e.target.value as SearchEngine)}
+                        className="block w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
+                        disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                      >
+                        {ENGINE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">话题关键词</span>
+                      <input
+                        type="text"
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        placeholder="输入话题..."
+                        className="block w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                      />
+                    </label>
+                  </div>
+                  <div className="rounded-lg border border-gray-100 bg-indigo-50/50 px-3 py-3">
+                    <p className="text-xs text-gray-700">
+                      将使用所选「搜索引擎」与「话题关键词」进行检索,再按当前读者与风格生成文章。
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {docModalMode === 'pdf' && (
                 <>
                   <label className="block">
                     <span className="text-xs font-semibold text-gray-700 mb-1.5 block">PDF 下载链接</span>
@@ -583,7 +588,9 @@ const App: React.FC = () => {
                     </p>
                   </label>
                 </>
-              ) : (
+              )}
+
+              {docModalMode === 'rawText' && (
                 <label className="block">
                   <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本(将作为抓取内容传入生成)</span>
                   <textarea
@@ -616,7 +623,24 @@ const App: React.FC = () => {
               >
                 取消
               </button>
-              {docModalMode === 'pdf' ? (
+              {docModalMode === 'search' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDocModalOpen(false);
+                    handleStartProcess();
+                  }}
+                  disabled={
+                    !keyword.trim() ||
+                    status === AppStatus.SEARCHING ||
+                    status === AppStatus.GENERATING
+                  }
+                  className="bg-indigo-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                >
+                  开始检索并生成
+                </button>
+              )}
+              {docModalMode === 'pdf' && (
                 <button
                   type="button"
                   onClick={handleParseDocument}
@@ -641,7 +665,8 @@ const App: React.FC = () => {
                     '解析并生成文章'
                   )}
                 </button>
-              ) : (
+              )}
+              {docModalMode === 'rawText' && (
                 <button
                   type="button"
                   onClick={handleGenerateFromRawText}
