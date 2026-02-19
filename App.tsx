@@ -71,6 +71,17 @@ const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
 
 你的目标是: **生成一份准确、完整、可用于程序处理的文档结构化结果。**`;
 
+/** 生成当前系统时间戳，格式 YYYY-MM-DD HH:mm，用于 front-matter title */
+const getTimestamp = (): string => {
+  const d = new Date();
+  const Y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, '0');
+  const D = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${Y}-${M}-${D} ${h}:${m}`;
+};
+
 const App: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [audience, setAudience] = useState(AUDIENCE_PRESETS[0].value);
@@ -123,7 +134,7 @@ const App: React.FC = () => {
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${keyword}`,
+        `title: ${getTimestamp()}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
@@ -203,7 +214,7 @@ const App: React.FC = () => {
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${usedKeyword}`,
+        `title: ${getTimestamp()}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
@@ -271,7 +282,7 @@ const App: React.FC = () => {
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${usedKeyword}`,
+        `title: ${getTimestamp()}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
