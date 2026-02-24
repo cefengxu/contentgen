@@ -10,6 +10,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+.env.example
 
 # 日志与调试
 npm-debug.log*

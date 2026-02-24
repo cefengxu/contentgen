@@ -120,6 +120,60 @@ export default defineConfig(({ mode }) => {
               });
             });
 
+            // POST 文章生成(OpenAI/Gemini): 在服务端执行,避免浏览器直连第三方 API 导致 CORS / Failed to fetch,且终端可看到 GEMINI_DEBUG 等 log
+            server.middlewares.use('/api/generate-article', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: { content?: string; message?: string }) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      provider?: string;
+                      keyword?: string;
+                      rawData?: string;
+                      options?: { audience?: string; length?: string; style?: string; engine?: string; provider?: string };
+                    };
+                    const provider = parsed.provider === 'Gemini' ? 'Gemini' : 'OpenAI';
+                    const keyword = String(parsed.keyword ?? '').trim();
+                    const rawData = String(parsed.rawData ?? '').trim();
+                    const opts = parsed.options ?? {};
+                    const options = {
+                      audience: opts.audience ?? '',
+                      length: opts.length ?? '',
+                      style: opts.style ?? '',
+                      engine: (opts.engine === 'Exa' ? 'Exa' : 'Tavily') as 'Tavily' | 'Exa',
+                      provider: provider as 'OpenAI' | 'Gemini',
+                    };
+                    if (!rawData) {
+                      send(400, { message: 'rawData 不能为空' });
+                      return;
+                    }
+                    if (provider === 'Gemini') {
+                      const { generateArticle: generateArticleGemini } = await import('./services/llm_gemini');
+                      const content = await generateArticleGemini(keyword, rawData, options as import('./types').GenerationOptions);
+                      send(200, { content });
+                    } else {
+                      const { generateArticle } = await import('./services/llm_openai');
+                      const content = await generateArticle(keyword, rawData, options as import('./types').GenerationOptions);
+                      send(200, { content });
+                    }
+                  } catch (err: any) {
+                    console.error('[generate-article]', err);
+                    send(500, { message: err?.message || '文章生成失败' });
+                  }
+                })().catch((err: any) => {
+                  console.error('[generate-article] unhandled', err);
+                  send(500, { message: err?.message || '文章生成失败' });
+                });
+              });
+            });
+
             // POST 文档解析(仅 Gemini):pdfUrl + prompt,返回解析结果
             server.middlewares.use('/api/parse-document', (req, res, next) => {
               if (req.method !== 'POST') return next();

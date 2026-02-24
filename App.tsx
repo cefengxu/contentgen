@@ -2,10 +2,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
-import { generateArticle } from './services/llm_openai';
-import { generateArticle as generateArticleGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
+
+/** 通过服务端 API 生成文章,避免浏览器直连 LLM 导致 CORS/Failed to fetch,且终端可看到 GEMINI_DEBUG 等 log */
+async function generateArticleViaApi(
+  provider: LLMProvider,
+  keyword: string,
+  rawData: string,
+  options: GenerationOptions
+): Promise<string> {
+  const res = await fetch('/api/generate-article', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, keyword, rawData, options }),
+  });
+  const data = await res.json().catch(() => ({})) as { content?: string; message?: string };
+  if (!res.ok) throw new Error(data.message || res.statusText || '生成失败');
+  if (data.content == null) throw new Error('服务器未返回内容');
+  return data.content;
+}
 
 const AUDIENCE_PRESETS = [
   { label: '泛科技读者 (一般)', value: '泛科技读者, 背景知识一般, 关注点优先级: 行业应用 > 技术特性, 语气自然, 行话密度中' },
@@ -125,9 +141,7 @@ const App: React.FC = () => {
 
       setStatus(AppStatus.GENERATING);
       const options: GenerationOptions = { audience, length, style, engine, provider };
-      const generatedContent = provider === 'Gemini'
-        ? await generateArticleGemini(keyword, rawData, options)
-        : await generateArticle(keyword, rawData, options);
+      const generatedContent = await generateArticleViaApi(provider, keyword, rawData, options);
 
       // 为生成的文章增加 Front-matter,并随机选择封面
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
@@ -204,10 +218,10 @@ const App: React.FC = () => {
 
       const rawDataFromPdf = data.text;
 
-      // 第二步:沿用 llm_gemini.ts 中的系统提示与生成逻辑,直接用 Gemini 写文章
+      // 第二步: 通过服务端 API 用 Gemini 写文章
       const options: GenerationOptions = { audience, length, style, engine, provider };
       const usedKeyword = keyword.trim() || 'PDF 文档';
-      const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
+      const generatedContent = await generateArticleViaApi('Gemini', usedKeyword, rawDataFromPdf, options);
 
       // 与「立即整合」一致的 Front-matter + 随机封面 + 本地保存逻辑
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
@@ -274,9 +288,7 @@ const App: React.FC = () => {
       const options: GenerationOptions = { audience, length, style, engine, provider };
       const usedKeyword = keyword.trim() || '原文本文章';
       const rawData = docRawText.trim();
-      const generatedContent = provider === 'Gemini'
-        ? await generateArticleGemini(usedKeyword, rawData, options)
-        : await generateArticle(usedKeyword, rawData, options);
+      const generatedContent = await generateArticleViaApi(provider, usedKeyword, rawData, options);
 
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
