@@ -29,6 +29,7 @@ const LENGTH_PRESETS = [
   { label: '500-800 字 (默认)', value: '500-800' },
   { label: '≤ 500 字 (精简)', value: '≤500' },
   { label: '800-1200 字 (深度)', value: '800-1200' },
+  { label: '1600-2200 字 (深度)', value: '1600-2200' },
 ];
 
 const ENGINE_PRESETS: { label: string; value: SearchEngine }[] = [
