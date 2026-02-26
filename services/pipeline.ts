@@ -4,7 +4,7 @@ import type { LLMProvider, SearchEngine, GenerationOptions } from '../types';
 import { fetchGlobalContext } from './search';
 import { generateArticle as generateArticleOpenAI } from './llm_openai';
 import { generateArticle as generateArticleGemini } from './llm_gemini';
-import { publishWenyan, type PublishResult } from '../server/publishWenyan';
+import { publishWenyanBackground, type PublishResult } from '../server/publishWenyan';
 
 /** 与 App.tsx 一致的读者人群预设 value */
 const AUDIENCE_VALUES = [
@@ -161,7 +161,7 @@ async function runSearchPipeline(opts: {
 
   let publishResult: PublishResult | undefined;
   if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
-    publishResult = await publishWenyan(filePath, {
+    publishResult = publishWenyanBackground(filePath, {
       WECHAT_APP_ID: opts.wechatAppId.trim(),
       WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
     });
@@ -217,7 +217,7 @@ async function runRawTextPipeline(opts: {
 
   let publishResult: PublishResult | undefined;
   if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
-    publishResult = await publishWenyan(filePath, {
+    publishResult = publishWenyanBackground(filePath, {
       WECHAT_APP_ID: opts.wechatAppId.trim(),
       WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
     });

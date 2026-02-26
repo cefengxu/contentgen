@@ -51,3 +51,38 @@ export async function publishWenyan(
     };
   }
 }
+
+/** 后台执行发布：启动命令后立即返回，不等待 CLI 结束。与前端「确认发布到微信」按钮行为一致，提交即视为成功。 */
+export function publishWenyanBackground(
+  filePath: string,
+  env?: { WECHAT_APP_ID?: string; WECHAT_APP_SECRET?: string }
+): PublishResult {
+  const runEnv = { ...process.env };
+  if (env?.WECHAT_APP_ID != null) runEnv.WECHAT_APP_ID = String(env.WECHAT_APP_ID);
+  if (env?.WECHAT_APP_SECRET != null) runEnv.WECHAT_APP_SECRET = String(env.WECHAT_APP_SECRET);
+
+  const cmd = `npx -y @wenyan-md/cli publish -f "${filePath}"`;
+  const cwd = path.resolve(__dirname, '..');
+
+  exec(cmd, {
+    env: runEnv,
+    cwd,
+    timeout: 120000,
+    maxBuffer: 10 * 1024 * 1024,
+  }, (error, stdout, stderr) => {
+    if (error) {
+      console.error('[publishWenyan] 后台发布 CLI 报错:', error.message);
+      if (stdout) console.log('[publishWenyan] stdout:', stdout);
+      if (stderr) console.error('[publishWenyan] stderr:', stderr);
+    } else {
+      console.log('[publishWenyan] 后台发布完成');
+      if (stdout) console.log('[publishWenyan] stdout:', stdout);
+      if (stderr) console.log('[publishWenyan] stderr:', stderr);
+    }
+  });
+
+  return {
+    success: true,
+    message: '已提交发布到微信，请稍后在公众号后台查看。',
+  };
+}
