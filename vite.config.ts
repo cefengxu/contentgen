@@ -56,6 +56,54 @@ export default defineConfig(({ mode }) => {
               }));
             });
 
+            // POST 对外服务接口: 传入参数执行「检索/原文本 → 生成文章 → 保存 → 可选发布到微信」全流程
+            server.middlewares.use('/api/run-pipeline', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: object) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      provider?: string;
+                      audience?: string;
+                      style?: string;
+                      length?: string;
+                      engine?: string;
+                      keyword?: string;
+                      rawText?: string;
+                      wechatAppId?: string;
+                      wechatAppSecret?: string;
+                    };
+                    const { runPipeline } = await import('./services/pipeline');
+                    const result = await runPipeline({
+                      provider: parsed.provider === 'OpenAI' ? 'OpenAI' : 'Gemini',
+                      audience: parsed.audience,
+                      style: parsed.style,
+                      length: parsed.length,
+                      engine: parsed.engine === 'Exa' ? 'Exa' : 'Tavily',
+                      keyword: parsed.keyword,
+                      rawText: parsed.rawText,
+                      wechatAppId: parsed.wechatAppId,
+                      wechatAppSecret: parsed.wechatAppSecret,
+                    });
+                    send(result.success ? 200 : 400, result);
+                  } catch (err: any) {
+                    console.error('[run-pipeline]', err);
+                    send(500, {
+                      success: false,
+                      message: err?.message || '流程执行失败',
+                    });
+                  }
+                })();
+              });
+            });
+
             // POST 使用指定微信参数执行 wenyan 发布,并返回执行结果
             server.middlewares.use('/api/publish', (req, res, next) => {
               if (req.method !== 'POST') return next();
