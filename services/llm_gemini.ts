@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
+import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
 /** 从环境变量读取的 Gemini 配置；GEMINI_API_URL 为完整 base 地址，代码不拼接路径，由 SDK 追加 */
 const getGeminiConfig = () => {
@@ -122,6 +123,22 @@ export const generateArticle = async (
 ): Promise<string> => {
   const systemInstruction = buildArticleSystemInstruction(rawData, options);
   const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文。`;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemInstruction },
+    { role: 'user', content: userContent },
+  ];
+  return chatCompletions(messages);
+};
+
+/**
+ * 翻译原文并生成文章(Gemini 非流式)，风格固定为农夫山泉，无读者/长度/风格参数
+ */
+export const translateArticle = async (
+  rawData: string,
+): Promise<string> => {
+  const systemInstruction = buildTranslateSystemInstruction(rawData);
+  const userContent = '请严格按上述风格要求，将抓取内容翻译并整理为 Markdown 正文。';
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemInstruction },

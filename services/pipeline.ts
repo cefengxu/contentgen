@@ -2,8 +2,8 @@ import path from 'path';
 import fs from 'fs';
 import type { LLMProvider, SearchEngine, GenerationOptions } from '../types';
 import { fetchGlobalContext } from './search';
-import { generateArticle as generateArticleOpenAI } from './llm_openai';
-import { generateArticle as generateArticleGemini } from './llm_gemini';
+import { generateArticle as generateArticleOpenAI, translateArticle as translateArticleOpenAI } from './llm_openai';
+import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini } from './llm_gemini';
 import { publishWenyanBackground, type PublishResult } from '../server/publishWenyan';
 
 /** 与 App.tsx 一致的读者人群预设 value */
@@ -51,6 +51,8 @@ export interface RunPipelineParams {
   keyword?: string;
   /** 原始文本：与 keyword 二选一，直接作为抓取内容生成文章 */
   rawText?: string;
+  /** 翻译模式：传 true 且提供 rawText 时，使用固定农夫山泉风格翻译，忽略 audience/style/length */
+  translate?: boolean;
   /** 发布到微信：可选，不传则不执行发布 */
   wechatAppId?: string;
   wechatAppSecret?: string;
@@ -84,6 +86,15 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
   const rawTextInput = params.rawText?.trim();
   const keywordInput = params.keyword?.trim();
 
+  if (rawTextInput && params.translate) {
+    // 翻译模式：固定农夫山泉风格，忽略 audience/style/length
+    return runTranslatePipeline({
+      provider,
+      rawText: rawTextInput,
+      wechatAppId: params.wechatAppId,
+      wechatAppSecret: params.wechatAppSecret,
+    });
+  }
   if (rawTextInput) {
     // 原文本生成文章
     return runRawTextPipeline({
@@ -226,6 +237,52 @@ async function runRawTextPipeline(opts: {
   return {
     success: true,
     message: '文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
+    filename,
+    title: usedKeyword,
+    publishResult,
+  };
+}
+
+async function runTranslatePipeline(opts: {
+  provider: LLMProvider;
+  rawText: string;
+  wechatAppId?: string;
+  wechatAppSecret?: string;
+}): Promise<RunPipelineResult> {
+  const usedKeyword = '翻译文章';
+
+  const generatedContent = opts.provider === 'Gemini'
+    ? await translateArticleGemini(opts.rawText)
+    : await translateArticleOpenAI(opts.rawText);
+
+  const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
+  const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
+  const frontMatter = [
+    '---',
+    `title: ${getTimestamp()}`,
+    'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
+    '---',
+    '',
+  ].join('\n');
+  const finalContent = frontMatter + generatedContent.trimStart();
+
+  const outputDir = path.join(__dirname, '..', 'medias', 'docs');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const filename = randomFilename();
+  const filePath = path.join(outputDir, filename);
+  fs.writeFileSync(filePath, finalContent, 'utf8');
+
+  let publishResult: PublishResult | undefined;
+  if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
+    publishResult = publishWenyanBackground(filePath, {
+      WECHAT_APP_ID: opts.wechatAppId.trim(),
+      WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
+    });
+  }
+
+  return {
+    success: true,
+    message: '翻译文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
     filename,
     title: usedKeyword,
     publishResult,

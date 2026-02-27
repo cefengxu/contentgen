@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
                       engine?: string;
                       keyword?: string;
                       rawText?: string;
+                      translate?: boolean;
                       wechatAppId?: string;
                       wechatAppSecret?: string;
                     };
@@ -89,6 +90,7 @@ export default defineConfig(({ mode }) => {
                       engine: parsed.engine === 'Exa' ? 'Exa' : 'Tavily',
                       keyword: parsed.keyword,
                       rawText: parsed.rawText,
+                      translate: parsed.translate === true,
                       wechatAppId: parsed.wechatAppId,
                       wechatAppSecret: parsed.wechatAppSecret,
                     });

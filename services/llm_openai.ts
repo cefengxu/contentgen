@@ -1,5 +1,6 @@
 import { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
+import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
 /** 从环境变量读取的 OpenAI 兼容 API 配置（OPENAI_API_URL 为完整地址，无需拼接路径） */
 const getApiConfig = () => {
@@ -67,6 +68,22 @@ export const generateArticle = async (
 ): Promise<string> => {
   const systemInstruction = buildArticleSystemInstruction(rawData, options);
   const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文。`;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemInstruction },
+    { role: 'user', content: userContent },
+  ];
+  return chatCompletions(messages);
+};
+
+/**
+ * 翻译原文并生成文章(OpenAI 兼容)，风格固定为农夫山泉，无读者/长度/风格参数
+ */
+export const translateArticle = async (
+  rawData: string,
+): Promise<string> => {
+  const systemInstruction = buildTranslateSystemInstruction(rawData);
+  const userContent = '请严格按上述风格要求，将抓取内容翻译并整理为 Markdown 正文。';
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemInstruction },

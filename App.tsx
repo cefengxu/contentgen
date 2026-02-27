@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
-import { generateArticle } from './services/llm_openai';
-import { generateArticle as generateArticleGemini } from './services/llm_gemini';
+import { generateArticle, translateArticle } from './services/llm_openai';
+import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
 
@@ -103,8 +103,8 @@ const App: React.FC = () => {
   const [docParseStatus, setDocParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [docParseError, setDocParseError] = useState<string | null>(null);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
-  /** 弹窗内模态:网络搜索 | PDF 文档解析 | 原文本生成文章 */
-  const [docModalMode, setDocModalMode] = useState<'search' | 'pdf' | 'rawText'>('search');
+  /** 弹窗内模态:网络搜索 | PDF 文档解析 | 原文本生成文章 | 翻译原文 */
+  const [docModalMode, setDocModalMode] = useState<'search' | 'pdf' | 'rawText' | 'translate'>('search');
   /** 原文本生成文章时的原始文本输入 */
   const [docRawText, setDocRawText] = useState('');
 
@@ -316,6 +316,69 @@ const App: React.FC = () => {
     } catch (e: any) {
       console.error('Raw Text Generate Error:', e);
       const msg = e?.message || '文章生成失败,请重试。';
+      setError(msg);
+      setDocParseError(msg);
+      setStatus(AppStatus.ERROR);
+      setDocParseStatus('error');
+    }
+  };
+
+  /** 翻译原文：用户输入的文本直接翻译，风格固定为农夫山泉，不依赖读者/长度/风格设置 */
+  const handleTranslate = async () => {
+    if (!docRawText.trim()) return;
+
+    setStatus(AppStatus.GENERATING);
+    setError(null);
+    setArticle(null);
+    setSavedFilename(null);
+    setPublishResult(null);
+    setDocParseStatus('loading');
+    setDocParseError(null);
+
+    try {
+      const usedKeyword = keyword.trim() || '翻译文章';
+      const rawData = docRawText.trim();
+      const generatedContent = provider === 'Gemini'
+        ? await translateArticleGemini(rawData)
+        : await translateArticle(rawData);
+
+      const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
+      const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
+      const frontMatterLines = [
+        '---',
+        `title: ${getTimestamp()}`,
+        'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
+        '---',
+        '',
+      ];
+      const frontMatter = frontMatterLines.join('\n');
+      const finalContent = frontMatter + generatedContent.trimStart();
+
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalContent }),
+      });
+
+      if (!saveResp.ok) {
+        const msg = await saveResp.text();
+        throw new Error(msg || '保存 Markdown 文件失败,请稍后重试。');
+      }
+      const saveData = await saveResp.json() as { filename?: string };
+      if (saveData.filename) setSavedFilename(saveData.filename);
+
+      setArticle({
+        title: usedKeyword,
+        content: finalContent,
+        sources: [],
+      });
+
+      setStatus(AppStatus.COMPLETED);
+      setIsDocModalOpen(false);
+      setDocParseStatus('idle');
+    } catch (e: any) {
+      console.error('Translate Error:', e);
+      const msg = e?.message || '翻译失败,请重试。';
       setError(msg);
       setDocParseError(msg);
       setStatus(AppStatus.ERROR);
@@ -538,6 +601,15 @@ const App: React.FC = () => {
                 >
                   原文本生成文章
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setDocModalMode('translate')}
+                  className={`py-2 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    docModalMode === 'translate' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  翻译原文
+                </button>
               </div>
 
               {docModalMode === 'search' && (
@@ -618,6 +690,30 @@ const App: React.FC = () => {
                     此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章,无需先解析 PDF。
                   </p>
                 </label>
+              )}
+
+              {docModalMode === 'translate' && (
+                <>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">待翻译原文</span>
+                    <textarea
+                      value={docRawText}
+                      onChange={(e) => setDocRawText(e.target.value)}
+                      rows={12}
+                      placeholder="在此粘贴待翻译的原文（支持英文等外语），将翻译为地道中文并输出 Markdown 正文…"
+                      className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
+                      disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                    />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      风格固定为「农夫山泉」：忠于原文、地道中文、消除翻译腔，不可更改。
+                    </p>
+                  </label>
+                  <div className="rounded-lg border border-gray-100 bg-amber-50/60 px-3 py-3">
+                    <p className="text-xs text-gray-700">
+                      翻译模式不使用读者人群、文章风格、目标长度等设置，直接按固定风格输出。
+                    </p>
+                  </div>
+                </>
               )}
 
               {docParseStatus === 'error' && docParseError && (
@@ -701,6 +797,31 @@ const App: React.FC = () => {
                     </>
                   ) : (
                     '生成文章'
+                  )}
+                </button>
+              )}
+              {docModalMode === 'translate' && (
+                <button
+                  type="button"
+                  onClick={handleTranslate}
+                  disabled={
+                    !docRawText.trim() ||
+                    docParseStatus === 'loading' ||
+                    status === AppStatus.GENERATING ||
+                    status === AppStatus.SEARCHING
+                  }
+                  className="bg-amber-600 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                >
+                  {docParseStatus === 'loading' ? (
+                    <>
+                      <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      翻译中
+                    </>
+                  ) : (
+                    '开始翻译'
                   )}
                 </button>
               )}

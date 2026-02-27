@@ -107,6 +107,17 @@ curl -X POST http://localhost:3000/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{"rawText":"这里是原始素材内容...","wechatAppId":"wx...","wechatAppSecret":"..."}'
 
+# 翻译原文（风格固定为农夫山泉，忽略 audience/style/length）
+curl -X POST http://localhost:3000/api/run-pipeline \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rawText": "Here is the original English article...",
+    "translate": true,
+    "provider": "Gemini",
+    "wechatAppId": "wx_your_appid",
+    "wechatAppSecret": "your_app_secret"
+  }'
+
 curl -X POST http://localhost:3000/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{
