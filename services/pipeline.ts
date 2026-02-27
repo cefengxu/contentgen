@@ -2,8 +2,8 @@ import path from 'path';
 import fs from 'fs';
 import type { LLMProvider, SearchEngine, GenerationOptions } from '../types';
 import { fetchGlobalContext } from './search';
-import { generateArticle as generateArticleOpenAI, translateArticle as translateArticleOpenAI } from './llm_openai';
-import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini } from './llm_gemini';
+import { generateArticle as generateArticleOpenAI, translateArticle as translateArticleOpenAI, generateTitle as generateTitleOpenAI } from './llm_openai';
+import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitle as generateTitleGemini } from './llm_gemini';
 import { publishWenyanBackground, type PublishResult } from '../server/publishWenyan';
 
 /** 与 App.tsx 一致的读者人群预设 value */
@@ -153,11 +153,14 @@ async function runSearchPipeline(opts: {
     ? await generateArticleGemini(opts.keyword, rawData, options)
     : await generateArticleOpenAI(opts.keyword, rawData, options);
 
+  const articleTitle = await (opts.provider === 'Gemini'
+    ? generateTitleGemini(generatedContent)
+    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
     '---',
-    `title: ${getTimestamp()}`,
+    `title: ${articleTitle}`,
     'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
     '---',
     '',
@@ -182,7 +185,7 @@ async function runSearchPipeline(opts: {
     success: true,
     message: '文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
     filename,
-    title: opts.keyword,
+    title: articleTitle,
     publishResult,
   };
 }
@@ -209,11 +212,14 @@ async function runRawTextPipeline(opts: {
     ? await generateArticleGemini(usedKeyword, opts.rawText, options)
     : await generateArticleOpenAI(usedKeyword, opts.rawText, options);
 
+  const articleTitle = await (opts.provider === 'Gemini'
+    ? generateTitleGemini(generatedContent)
+    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
     '---',
-    `title: ${getTimestamp()}`,
+    `title: ${articleTitle}`,
     'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
     '---',
     '',
@@ -238,7 +244,7 @@ async function runRawTextPipeline(opts: {
     success: true,
     message: '文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
     filename,
-    title: usedKeyword,
+    title: articleTitle,
     publishResult,
   };
 }
@@ -255,11 +261,14 @@ async function runTranslatePipeline(opts: {
     ? await translateArticleGemini(opts.rawText)
     : await translateArticleOpenAI(opts.rawText);
 
+  const articleTitle = await (opts.provider === 'Gemini'
+    ? generateTitleGemini(generatedContent)
+    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
     '---',
-    `title: ${getTimestamp()}`,
+    `title: ${articleTitle}`,
     'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
     '---',
     '',
@@ -284,7 +293,7 @@ async function runTranslatePipeline(opts: {
     success: true,
     message: '翻译文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
     filename,
-    title: usedKeyword,
+    title: articleTitle,
     publishResult,
   };
 }

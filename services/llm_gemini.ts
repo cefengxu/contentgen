@@ -154,11 +154,11 @@ export const generateTitle = async (articleContent: string): Promise<string> => 
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: '你是一位微信公众号标题专家。根据用户提供的文章正文，生成一个吸引人、简洁有力的中文标题。\n要求：\n- 字数 10-20 字\n- 不使用引号、书名号或任何标点符号包裹标题\n- 只输出标题本身，不输出任何解释或额外内容',
+      content: '你是一位深谙爆款逻辑的微信公众号主编。请根据文章正文，创作一个极其抓人眼球、直击人性、让人忍不住想点击的“标题党”标题。\n\n策略指南:- 制造反差:利用认知偏差或冲突，打破读者的思维惯性;- 利益钩子:明确展示读者能获得的价值、干货或避坑指南;- 情绪共鸣:精准戳中焦虑、好奇、愤怒或温情等情绪点;- 设置悬念:话留一半，或利用“为什么”、“竟然”引导探索欲;\n\n硬性约束:- 字数严格控制在 10-20 字之间;- 不使用引号、书名号或任何成对的标点符号包裹标题;- 严禁输出任何解释、分析或前缀，只输出标题文本;',
     },
     {
       role: 'user',
-      content: `请根据以下文章正文生成标题：\n\n${articleContent.slice(0, 1500)}`,
+      content: `请根据以下文章正文生成标题:\n\n${articleContent.slice(0, 1500)}`,
     },
   ];
   const raw = await chatCompletions(messages);
