@@ -147,6 +147,24 @@ export const translateArticle = async (
   return chatCompletions(messages);
 };
 
+/**
+ * 根据已生成的文章正文，生成一个适合微信公众号的标题（单行纯文本，不含引号）
+ */
+export const generateTitle = async (articleContent: string): Promise<string> => {
+  const messages: ChatMessage[] = [
+    {
+      role: 'system',
+      content: '你是一位微信公众号标题专家。根据用户提供的文章正文，生成一个吸引人、简洁有力的中文标题。\n要求：\n- 字数 10-20 字\n- 不使用引号、书名号或任何标点符号包裹标题\n- 只输出标题本身，不输出任何解释或额外内容',
+    },
+    {
+      role: 'user',
+      content: `请根据以下文章正文生成标题：\n\n${articleContent.slice(0, 1500)}`,
+    },
+  ];
+  const raw = await chatCompletions(messages);
+  return raw.trim().replace(/^["'「『【]|["'」』】]$/g, '');
+};
+
 export interface GeminiChatSession {
   sendMessage: (params: { message: string }) => Promise<{ text: string }>;
 }

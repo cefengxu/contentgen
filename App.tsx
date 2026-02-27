@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
-import { generateArticle, translateArticle } from './services/llm_openai';
-import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini } from './services/llm_gemini';
+import { generateArticle, translateArticle, generateTitle } from './services/llm_openai';
+import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitle as generateTitleGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
 
@@ -131,11 +131,14 @@ const App: React.FC = () => {
         : await generateArticle(keyword, rawData, options);
 
       // 为生成的文章增加 Front-matter,并随机选择封面
+      const articleTitle = await (provider === 'Gemini'
+        ? generateTitleGemini(generatedContent)
+        : generateTitle(generatedContent)).catch(() => getTimestamp());
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${getTimestamp()}`,
+        `title: ${articleTitle}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
@@ -211,11 +214,12 @@ const App: React.FC = () => {
       const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
 
       // 与「立即整合」一致的 Front-matter + 随机封面 + 本地保存逻辑
+      const articleTitle = await generateTitleGemini(generatedContent).catch(() => getTimestamp());
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${getTimestamp()}`,
+        `title: ${articleTitle}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
@@ -279,11 +283,14 @@ const App: React.FC = () => {
         ? await generateArticleGemini(usedKeyword, rawData, options)
         : await generateArticle(usedKeyword, rawData, options);
 
+      const articleTitle = await (provider === 'Gemini'
+        ? generateTitleGemini(generatedContent)
+        : generateTitle(generatedContent)).catch(() => getTimestamp());
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${getTimestamp()}`,
+        `title: ${articleTitle}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
@@ -342,11 +349,14 @@ const App: React.FC = () => {
         ? await translateArticleGemini(rawData)
         : await translateArticle(rawData);
 
+      const articleTitle = await (provider === 'Gemini'
+        ? generateTitleGemini(generatedContent)
+        : generateTitle(generatedContent)).catch(() => getTimestamp());
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
         '---',
-        `title: ${getTimestamp()}`,
+        `title: ${articleTitle}`,
         'cover: /home/ubuntu/contentgen/medias/assets/' + randomCover,
         '---',
         '',
