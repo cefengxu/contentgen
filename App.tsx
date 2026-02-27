@@ -207,7 +207,7 @@ const App: React.FC = () => {
 
       // 第二步:沿用 llm_gemini.ts 中的系统提示与生成逻辑,直接用 Gemini 写文章
       const options: GenerationOptions = { audience, length, style, engine, provider };
-      const usedKeyword = keyword.trim() || 'PDF 文档';
+      const usedKeyword = 'PDF 文档';
       const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
 
       // 与「立即整合」一致的 Front-matter + 随机封面 + 本地保存逻辑
@@ -273,7 +273,7 @@ const App: React.FC = () => {
 
     try {
       const options: GenerationOptions = { audience, length, style, engine, provider };
-      const usedKeyword = keyword.trim() || '原文本文章';
+      const usedKeyword = '原文本文章';
       const rawData = docRawText.trim();
       const generatedContent = provider === 'Gemini'
         ? await generateArticleGemini(usedKeyword, rawData, options)
@@ -336,7 +336,7 @@ const App: React.FC = () => {
     setDocParseError(null);
 
     try {
-      const usedKeyword = keyword.trim() || '翻译文章';
+      const usedKeyword = '翻译文章';
       const rawData = docRawText.trim();
       const generatedContent = provider === 'Gemini'
         ? await translateArticleGemini(rawData)
@@ -519,7 +519,7 @@ const App: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setIsDocModalOpen(true)}
+            onClick={() => { setIsDocModalOpen(true); setDocModalMode('search'); }}
             disabled={status === AppStatus.SEARCHING || status === AppStatus.GENERATING}
             className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg text-xs hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
           >
@@ -552,24 +552,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
-                <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block">当前将用于生成文章的设置</span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-700">
-                  <div>
-                    <span className="text-gray-400">读者人群:</span>
-                    <span className="font-medium">{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">文章风格:</span>
-                    <span className="font-medium">{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">目标长度:</span>
-                    <span className="font-medium">{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</span>
-                  </div>
-                </div>
-              </div>
-
               {/* 同级标签: 网络搜索 | PDF 文档解析(Gemini) | 原文本生成文章 */}
               <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50 flex-wrap">
                 <button
@@ -638,10 +620,15 @@ const App: React.FC = () => {
                       />
                     </label>
                   </div>
-                  <div className="rounded-lg border border-gray-100 bg-indigo-50/50 px-3 py-3">
+                  <div className="rounded-lg border border-gray-100 bg-indigo-50/50 px-3 py-3 space-y-1.5">
                     <p className="text-xs text-gray-700">
                       将使用所选「搜索引擎」与「话题关键词」进行检索,再按当前读者与风格生成文章。
                     </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-xs text-gray-500">
+                      <div><span className="text-gray-400">读者人群：</span>{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</div>
+                      <div><span className="text-gray-400">文章风格：</span>{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</div>
+                      <div><span className="text-gray-400">目标长度：</span>{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</div>
+                    </div>
                   </div>
                 </>
               )}
@@ -672,24 +659,40 @@ const App: React.FC = () => {
                       默认提示词已针对「文档结构化解析」优化,你也可以根据具体文档类型微调要求。
                     </p>
                   </label>
+                  <div className="rounded-lg border border-gray-100 bg-indigo-50/50 px-3 py-3 space-y-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-xs text-gray-500">
+                      <div><span className="text-gray-400">读者人群：</span>{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</div>
+                      <div><span className="text-gray-400">文章风格：</span>{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</div>
+                      <div><span className="text-gray-400">目标长度：</span>{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</div>
+                    </div>
+                  </div>
                 </>
               )}
 
               {docModalMode === 'rawText' && (
-                <label className="block">
-                  <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本(将作为抓取内容传入生成)</span>
-                  <textarea
-                    value={docRawText}
-                    onChange={(e) => setDocRawText(e.target.value)}
-                    rows={12}
-                    placeholder="在此粘贴或输入原始文本,内容将直接作为「抓取内容」传入模型生成文章…"
-                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
-                    disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
-                  />
-                  <p className="mt-1 text-[11px] text-gray-400">
-                    此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章,无需先解析 PDF。
-                  </p>
-                </label>
+                <>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-700 mb-1.5 block">原始文本(将作为抓取内容传入生成)</span>
+                    <textarea
+                      value={docRawText}
+                      onChange={(e) => setDocRawText(e.target.value)}
+                      rows={12}
+                      placeholder="在此粘贴或输入原始文本,内容将直接作为「抓取内容」传入模型生成文章…"
+                      className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
+                      disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
+                    />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      此处内容会原样填入系统提示中的「抓取内容」并用于生成最终文章,无需先解析 PDF。
+                    </p>
+                  </label>
+                  <div className="rounded-lg border border-gray-100 bg-indigo-50/50 px-3 py-3 space-y-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-xs text-gray-500">
+                      <div><span className="text-gray-400">读者人群：</span>{AUDIENCE_PRESETS.find(p => p.value === audience)?.label ?? audience}</div>
+                      <div><span className="text-gray-400">文章风格：</span>{STYLE_PRESETS.find(p => p.value === style)?.label ?? style}</div>
+                      <div><span className="text-gray-400">目标长度：</span>{LENGTH_PRESETS.find(p => p.value === length)?.label ?? length}</div>
+                    </div>
+                  </div>
+                </>
               )}
 
               {docModalMode === 'translate' && (
