@@ -3,15 +3,26 @@ import type { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
 import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
-/** 从环境变量读取的 Gemini 配置；GEMINI_API_URL 为完整 base 地址，代码不拼接路径，由 SDK 追加 */
+/**
+ * 按照官方示例：const ai = new GoogleGenAI({});
+ * 但浏览器环境需要显式传入 apiKey，因为无法访问 process.env
+ */
 const getGeminiConfig = () => {
-  const apiKey = process.env.GEMINI_API_KEY || '';
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const apiUrl = (process.env.GEMINI_API_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.GOOGLE_API_KEY || '';
+  const model = process.env.GOOGLE_MODEL || 'gemini-1.5-flash';
+  
   if (!apiKey) {
-    throw new Error('请在 .env 或环境变量中配置 GEMINI_API_KEY');
+    throw new Error('请在 .env.local 或环境变量中配置 GOOGLE_API_KEY');
   }
-  return { apiKey, model, baseUrl: apiUrl || undefined };
+  
+  if (process.env.GEMINI_DEBUG === '1') {
+    console.log('[Gemini Debug] 配置信息:', {
+      model,
+      apiKey: apiKey.slice(0, 10) + '...',
+    });
+  }
+  
+  return { apiKey, model };
 };
 
 /** 与 llm_openai.ts 一致的对话消息格式(用于 chatCompletions) */
@@ -26,11 +37,8 @@ export interface ChatMessage {
  * @returns 模型生成的文本
  */
 export const generateContent = async (contents: string): Promise<string> => {
-  const { apiKey, model, baseUrl } = getGeminiConfig();
-  const ai = new GoogleGenAI({
-    apiKey,
-    ...(baseUrl && { httpOptions: { baseUrl } }),
-  });
+  const { apiKey, model } = getGeminiConfig();
+  const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({
     model,
@@ -48,11 +56,8 @@ export const generateContent = async (contents: string): Promise<string> => {
  * @param prompt 用户输入的解析指令(如「总结这份文档」)
  */
 export const parseDocument = async (pdfUrl: string, prompt: string): Promise<string> => {
-  const { apiKey, model, baseUrl } = getGeminiConfig();
-  const ai = new GoogleGenAI({
-    apiKey,
-    ...(baseUrl && { httpOptions: { baseUrl } }),
-  });
+  const { apiKey, model } = getGeminiConfig();
+  const ai = new GoogleGenAI({ apiKey });
 
   const pdfResp = await fetch(pdfUrl).then((r) => r.arrayBuffer());
   const dataBase64 = Buffer.from(pdfResp).toString('base64');
@@ -80,11 +85,8 @@ export const parseDocument = async (pdfUrl: string, prompt: string): Promise<str
  * 将 system/user/assistant 消息转为 Gemini 的 systemInstruction + contents 调用
  */
 export const chatCompletions = async (messages: ChatMessage[]): Promise<string> => {
-  const { apiKey, model, baseUrl } = getGeminiConfig();
-  const ai = new GoogleGenAI({
-    apiKey,
-    ...(baseUrl && { httpOptions: { baseUrl } }),
-  });
+  const { apiKey, model } = getGeminiConfig();
+  const ai = new GoogleGenAI({ apiKey });
 
   const systemParts: string[] = [];
   const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];

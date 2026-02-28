@@ -32,9 +32,8 @@ export default defineConfig(({ mode }) => {
             console.log('  OPENAI_API_URL:', env.OPENAI_API_URL ? `${env.OPENAI_API_URL.slice(0, 40)}...` : '(未设置)');
             console.log('  OPENAI_API_KEY:', env.OPENAI_API_KEY ? '已设置' : '(未设置)');
             console.log('  OPENAI_MODEL:', env.OPENAI_MODEL || 'gpt-3.5-turbo');
-            console.log('  GEMINI_API_KEY:', env.GEMINI_API_KEY ? '已设置' : '(未设置)');
-            console.log('  GEMINI_MODEL:', env.GEMINI_MODEL || 'gemini-2.0-flash');
-            console.log('  GEMINI_API_URL:', env.GEMINI_API_URL ? `${env.GEMINI_API_URL.slice(0, 40)}...` : '(未设置,使用官方)');
+            console.log('  GOOGLE_API_KEY:', env.GOOGLE_API_KEY ? '已设置' : '(未设置)');
+            console.log('  GOOGLE_MODEL:', env.GOOGLE_MODEL || 'gemini-1.5-flash');
             console.log('  配置有效:', hasLlm ? '是' : '否(请检查 .env.local)');
             console.log('  端口:', port);
             console.log('');
@@ -260,9 +259,8 @@ export default defineConfig(({ mode }) => {
         'process.env.OPENAI_MODEL': JSON.stringify(env.OPENAI_MODEL ?? 'gpt-3.5-turbo'),
         'process.env.TAVILY_API_KEY': JSON.stringify(env.TAVILY_API_KEY ?? ''),
         'process.env.EXA_API_KEY': JSON.stringify(env.EXA_API_KEY ?? ''),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY ?? ''),
-        'process.env.GEMINI_MODEL': JSON.stringify(env.GEMINI_MODEL ?? 'gemini-2.0-flash'),
-        'process.env.GEMINI_API_URL': JSON.stringify(env.GEMINI_API_URL ?? ''),
+        'process.env.GOOGLE_API_KEY': JSON.stringify(env.GOOGLE_API_KEY ?? ''),
+        'process.env.GOOGLE_MODEL': JSON.stringify(env.GOOGLE_MODEL ?? 'gemini-1.5-flash'),
       },
       resolve: {
         alias: {
