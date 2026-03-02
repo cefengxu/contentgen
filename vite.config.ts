@@ -44,6 +44,17 @@ export default defineConfig(({ mode }) => {
           configureServer(server) {
             const outputDir = path.resolve(__dirname, 'medias/docs');
 
+            // GET Notion 配置(用于前端默认填充 API Key 与 Database ID)
+            server.middlewares.use('/api/notion-config', (req, res, next) => {
+              if (req.method !== 'GET') return next();
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                NOTION_API_KEY: process.env.Notion_API_Key ?? '',
+                NOTION_DATABASE_ID: process.env.Notion_Database_ID ?? '',
+              }));
+            });
+
             // POST: 使用指定 Notion 配置将某个已生成的 Markdown 文件插入到目标数据库中
             server.middlewares.use('/api/notion-insert', (req, res, next) => {
               if (req.method !== 'POST') return next();
@@ -135,6 +146,8 @@ export default defineConfig(({ mode }) => {
                       translate?: boolean;
                       wechatAppId?: string;
                       wechatAppSecret?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
                     };
                     const { runPipeline } = await import('./services/pipeline');
                     const result = await runPipeline({
@@ -148,6 +161,8 @@ export default defineConfig(({ mode }) => {
                       translate: parsed.translate === true,
                       wechatAppId: parsed.wechatAppId,
                       wechatAppSecret: parsed.wechatAppSecret,
+                      notionApiKey: parsed.notionApiKey,
+                      notionDatabaseId: parsed.notionDatabaseId,
                     });
                     send(result.success ? 200 : 400, result);
                   } catch (err: any) {

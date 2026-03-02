@@ -41,8 +41,10 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 | `engine` | string | 网络搜索引擎，见下「engine 可选值」 |
 | `keyword` | string | **与 rawText 二选一**。网络搜索时的话题关键词 |
 | `rawText` | string | **与 keyword 二选一**。原文本内容，直接作为抓取内容生成文章 |
-| `wechatAppId` | string | 公众号 AppID，与 wechatAppSecret 同时传入则执行发布到微信 |
+| `wechatAppId` | string | 公众号 AppID，与 `wechatAppSecret` 同时传入则执行发布到微信 |
 | `wechatAppSecret` | string | 公众号 AppSecret |
+| `notionApiKey` | string | Notion API Key，与 `notionDatabaseId` 同时传入则执行推送到 Notion |
+| `notionDatabaseId` | string | Notion Database ID（数据库 UUID），与 `notionApiKey` 同时传入则执行推送到 Notion |
 
 **provider 可选值（传 value）：**
 
@@ -129,7 +131,9 @@ curl -X POST http://localhost:3000/api/run-pipeline \
     "keyword": "AI 大模型趋势",
     "rawText": null,
     "wechatAppId": "wx_your_appid",
-    "wechatAppSecret": "your_app_secret"
+    "wechatAppSecret": "your_app_secret",
+    "notionApiKey": "ntn_xxx",
+    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
   }'
 
 ```

@@ -531,6 +531,22 @@ const App: React.FC = () => {
       .catch(() => {});
   }, [status]);
 
+  // 初始化 Notion 配置: 若环境变量中已提供,则在首次加载时自动填入输入框(用户手动修改仍然优先生效)
+  useEffect(() => {
+    if (notionApiKey || notionDatabaseId) return;
+    fetch('/api/notion-config')
+      .then((r) => r.json())
+      .then((data: { NOTION_API_KEY?: string; NOTION_DATABASE_ID?: string }) => {
+        if (!notionApiKey && data.NOTION_API_KEY) {
+          setNotionApiKey(String(data.NOTION_API_KEY));
+        }
+        if (!notionDatabaseId && data.NOTION_DATABASE_ID) {
+          setNotionDatabaseId(String(data.NOTION_DATABASE_ID));
+        }
+      })
+      .catch(() => {});
+  }, [notionApiKey, notionDatabaseId]);
+
   return (
     <div className="min-h-screen pb-20 font-sans bg-gray-50 text-gray-900">
       {/* Header */}

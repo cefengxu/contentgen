@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 
 const NOTION_API_BASE = 'https://api.notion.com/v1';
-// 与你提供的示例保持一致，使用 2022-06-28 版本，避免属性结构差异导致兼容性问题
-const NOTION_VERSION = '2022-06-28';
+// 跟随 Notion 官方最新稳定版 API；如需固定旧版本可在此调整
+const NOTION_VERSION = '2025-09-03';
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;

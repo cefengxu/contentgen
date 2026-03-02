@@ -5,6 +5,7 @@ import { fetchGlobalContext } from './search';
 import { generateArticle as generateArticleOpenAI, translateArticle as translateArticleOpenAI, generateTitle as generateTitleOpenAI } from './llm_openai';
 import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitle as generateTitleGemini } from './llm_gemini';
 import { publishWenyanBackground, type PublishResult } from '../server/publishWenyan';
+import { createPageFromMarkdown, type NotionInsertResult } from '../server/notion';
 
 /** 与 App.tsx 一致的读者人群预设 value */
 const AUDIENCE_VALUES = [
@@ -56,6 +57,9 @@ export interface RunPipelineParams {
   /** 发布到微信：可选，不传则不执行发布 */
   wechatAppId?: string;
   wechatAppSecret?: string;
+  /** 推送到 Notion：可选，不传或缺任何一项则不执行推送 */
+  notionApiKey?: string;
+  notionDatabaseId?: string;
 }
 
 export interface RunPipelineResult {
@@ -64,6 +68,7 @@ export interface RunPipelineResult {
   filename?: string;
   title?: string;
   publishResult?: PublishResult;
+  notionResult?: NotionInsertResult;
 }
 
 /**
@@ -93,6 +98,8 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       rawText: rawTextInput,
       wechatAppId: params.wechatAppId,
       wechatAppSecret: params.wechatAppSecret,
+      notionApiKey: params.notionApiKey,
+      notionDatabaseId: params.notionDatabaseId,
     });
   }
   if (rawTextInput) {
@@ -105,6 +112,8 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       rawText: rawTextInput,
       wechatAppId: params.wechatAppId,
       wechatAppSecret: params.wechatAppSecret,
+      notionApiKey: params.notionApiKey,
+      notionDatabaseId: params.notionDatabaseId,
     });
   }
   if (keywordInput) {
@@ -118,6 +127,8 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       keyword: keywordInput,
       wechatAppId: params.wechatAppId,
       wechatAppSecret: params.wechatAppSecret,
+      notionApiKey: params.notionApiKey,
+      notionDatabaseId: params.notionDatabaseId,
     });
   }
   return {
@@ -135,6 +146,8 @@ async function runSearchPipeline(opts: {
   keyword: string;
   wechatAppId?: string;
   wechatAppSecret?: string;
+  notionApiKey?: string;
+  notionDatabaseId?: string;
 }): Promise<RunPipelineResult> {
   const options: GenerationOptions = {
     audience: opts.audience,
@@ -174,19 +187,37 @@ async function runSearchPipeline(opts: {
   fs.writeFileSync(filePath, finalContent, 'utf8');
 
   let publishResult: PublishResult | undefined;
+  let notionResult: NotionInsertResult | undefined;
   if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
     publishResult = publishWenyanBackground(filePath, {
       WECHAT_APP_ID: opts.wechatAppId.trim(),
       WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
     });
   }
+  if (opts.notionApiKey?.trim() && opts.notionDatabaseId?.trim()) {
+    try {
+      notionResult = await createPageFromMarkdown(filePath, {
+        apiKey: opts.notionApiKey.trim(),
+        databaseId: opts.notionDatabaseId.trim(),
+      });
+    } catch (err: any) {
+      notionResult = {
+        success: false,
+        message: err?.message || '推送到 Notion 失败',
+      };
+    }
+  }
 
   return {
     success: true,
-    message: '文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
+    message:
+      '文章已生成并保存' +
+      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
+      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,
+    notionResult,
   };
 }
 
@@ -198,6 +229,8 @@ async function runRawTextPipeline(opts: {
   rawText: string;
   wechatAppId?: string;
   wechatAppSecret?: string;
+  notionApiKey?: string;
+  notionDatabaseId?: string;
 }): Promise<RunPipelineResult> {
   const options: GenerationOptions = {
     audience: opts.audience,
@@ -233,19 +266,37 @@ async function runRawTextPipeline(opts: {
   fs.writeFileSync(filePath, finalContent, 'utf8');
 
   let publishResult: PublishResult | undefined;
+  let notionResult: NotionInsertResult | undefined;
   if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
     publishResult = publishWenyanBackground(filePath, {
       WECHAT_APP_ID: opts.wechatAppId.trim(),
       WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
     });
   }
+  if (opts.notionApiKey?.trim() && opts.notionDatabaseId?.trim()) {
+    try {
+      notionResult = await createPageFromMarkdown(filePath, {
+        apiKey: opts.notionApiKey.trim(),
+        databaseId: opts.notionDatabaseId.trim(),
+      });
+    } catch (err: any) {
+      notionResult = {
+        success: false,
+        message: err?.message || '推送到 Notion 失败',
+      };
+    }
+  }
 
   return {
     success: true,
-    message: '文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
+    message:
+      '文章已生成并保存' +
+      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
+      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,
+    notionResult,
   };
 }
 
@@ -254,6 +305,8 @@ async function runTranslatePipeline(opts: {
   rawText: string;
   wechatAppId?: string;
   wechatAppSecret?: string;
+  notionApiKey?: string;
+  notionDatabaseId?: string;
 }): Promise<RunPipelineResult> {
   const usedKeyword = '翻译文章';
 
@@ -282,18 +335,36 @@ async function runTranslatePipeline(opts: {
   fs.writeFileSync(filePath, finalContent, 'utf8');
 
   let publishResult: PublishResult | undefined;
+  let notionResult: NotionInsertResult | undefined;
   if (opts.wechatAppId?.trim() && opts.wechatAppSecret?.trim()) {
     publishResult = publishWenyanBackground(filePath, {
       WECHAT_APP_ID: opts.wechatAppId.trim(),
       WECHAT_APP_SECRET: opts.wechatAppSecret.trim(),
     });
   }
+  if (opts.notionApiKey?.trim() && opts.notionDatabaseId?.trim()) {
+    try {
+      notionResult = await createPageFromMarkdown(filePath, {
+        apiKey: opts.notionApiKey.trim(),
+        databaseId: opts.notionDatabaseId.trim(),
+      });
+    } catch (err: any) {
+      notionResult = {
+        success: false,
+        message: err?.message || '推送到 Notion 失败',
+      };
+    }
+  }
 
   return {
     success: true,
-    message: '翻译文章已生成并保存' + (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。'),
+    message:
+      '翻译文章已生成并保存' +
+      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
+      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,
+    notionResult,
   };
 }
