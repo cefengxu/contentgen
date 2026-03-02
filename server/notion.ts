@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 
 const NOTION_API_BASE = 'https://api.notion.com/v1';
-const NOTION_VERSION = '2025-09-03';
+// 与你提供的示例保持一致，使用 2022-06-28 版本，避免属性结构差异导致兼容性问题
+const NOTION_VERSION = '2022-06-28';
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
@@ -257,11 +258,12 @@ export async function createPageFromMarkdown(
   const raw = fs.readFileSync(absPath, 'utf8');
   const { title, body } = extractTitleAndBody(raw, filename);
 
+  // 使用与你提供的数据库结构完全一致的字段名:
+  // TITLE / STATUS / WECHAT / WWW / Created
   const db = await fetchDatabaseMeta(config);
-  const titleProp = pickTitleProperty(db);
 
   const baseProperties: Record<string, any> = {
-    [titleProp]: {
+    TITLE: {
       title: [
         {
           type: 'text',
