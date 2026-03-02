@@ -97,6 +97,9 @@ const App: React.FC = () => {
   const [wechatAppId, setWechatAppId] = useState('');
   const [wechatAppSecret, setWechatAppSecret] = useState('');
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; stdout?: string; stderr?: string } | null>(null);
+  const [notionApiKey, setNotionApiKey] = useState('');
+  const [notionDatabaseId, setNotionDatabaseId] = useState('');
+  const [notionResult, setNotionResult] = useState<{ success: boolean; message: string; pageId?: string; url?: string } | null>(null);
   // 文档解析(仅 Gemini)
   const [docPdfUrl, setDocPdfUrl] = useState('');
   const [docPrompt, setDocPrompt] = useState(DEFAULT_DOC_PROMPT);
@@ -116,6 +119,7 @@ const App: React.FC = () => {
     setArticle(null);
     setSavedFilename(null);
     setPublishResult(null);
+    setNotionResult(null);
 
     try {
       const { text: rawData, sources } = await fetchGlobalContext(keyword, engine);
@@ -182,6 +186,7 @@ const App: React.FC = () => {
     setArticle(null);
     setSavedFilename(null);
     setPublishResult(null);
+    setNotionResult(null);
     setDocParseStatus('loading');
     setDocParseError(null);
 
@@ -272,6 +277,7 @@ const App: React.FC = () => {
     setArticle(null);
     setSavedFilename(null);
     setPublishResult(null);
+    setNotionResult(null);
     setDocParseStatus('loading');
     setDocParseError(null);
 
@@ -339,6 +345,7 @@ const App: React.FC = () => {
     setArticle(null);
     setSavedFilename(null);
     setPublishResult(null);
+    setNotionResult(null);
     setDocParseStatus('loading');
     setDocParseError(null);
 
@@ -423,6 +430,7 @@ const App: React.FC = () => {
     
     // 清空之前的结果
     setPublishResult(null);
+    setNotionResult(null);
     
     try {
       const resp = await fetch('/api/publish', {
@@ -441,6 +449,66 @@ const App: React.FC = () => {
       setPublishResult(data);
     } catch (e: any) {
       setPublishResult({
+        success: false,
+        message: e?.message || '网络请求失败',
+      });
+    }
+  };
+
+  const handlePushToNotion = async () => {
+    if (!notionApiKey.trim() || !notionDatabaseId.trim()) {
+      setNotionResult({ success: false, message: '请填写 Notion API Key 和 Database ID' });
+      return;
+    }
+
+    let filename = savedFilename;
+    if (!filename && article?.content) {
+      const saveResp = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: article.content }),
+      });
+      if (!saveResp.ok) {
+        setNotionResult({ success: false, message: '保存失败,无法同步到 Notion' });
+        return;
+      }
+      const saveData = await saveResp.json() as { filename?: string };
+      filename = saveData.filename ?? null;
+      if (filename) setSavedFilename(filename);
+    }
+    if (!filename) {
+      setNotionResult({ success: false, message: '无可同步文件,请先生成文章' });
+      return;
+    }
+
+    setNotionResult(null);
+
+    try {
+      const resp = await fetch('/api/notion-insert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          notionApiKey: notionApiKey.trim(),
+          notionDatabaseId: notionDatabaseId.trim(),
+        }),
+      });
+
+      const text = await resp.text();
+      let data: { success: boolean; message: string; pageId?: string; url?: string };
+      try {
+        data = text
+          ? (JSON.parse(text) as { success: boolean; message: string; pageId?: string; url?: string })
+          : { success: false, message: '服务器未返回有效数据' };
+      } catch {
+        data = {
+          success: false,
+          message: resp.ok ? '响应格式异常' : `请求失败: ${resp.status} ${text || resp.statusText}`,
+        };
+      }
+      setNotionResult(data);
+    } catch (e: any) {
+      setNotionResult({
         success: false,
         message: e?.message || '网络请求失败',
       });
@@ -944,6 +1012,62 @@ const App: React.FC = () => {
                   <p className="font-semibold">{publishResult.message}</p>
                   {publishResult.stdout && <pre className="mt-3 whitespace-pre-wrap opacity-75 text-xs">{publishResult.stdout}</pre>}
                   {publishResult.stderr && <pre className="mt-3 whitespace-pre-wrap text-red-600 text-xs">{publishResult.stderr}</pre>}
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10 max-w-4xl mx-auto mt-8 transition-all">
+              <h3 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-50 pb-4">同步到 Notion 数据库</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                填写 Notion 集成的 API Key 与目标「数据库」的 Database ID（勿填页面 ID：数据库在页面内部时，请从数据库链接或「⋯」→ 复制链接 中取 UUID，如 2feb6327-d4f6-800f-9d49-e68a6280a44c）。点击「推送到 Notion」后，当前文章将作为新记录插入，STATUS / WECHAT / WWW 使用默认值，Created 为今日。
+              </p>
+              <div className="space-y-4 mb-6">
+                <label className="block">
+                  <span className="text-sm font-semibold text-gray-700 mb-1.5 block">Notion API Key</span>
+                  <input
+                    type="password"
+                    value={notionApiKey}
+                    onChange={(e) => setNotionApiKey(e.target.value)}
+                    placeholder="ntn_xxx 或 secret_xxx"
+                    className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-semibold text-gray-700 mb-1.5 block">Notion Database ID</span>
+                  <input
+                    type="text"
+                    value={notionDatabaseId}
+                    onChange={(e) => setNotionDatabaseId(e.target.value)}
+                    placeholder="数据库 UUID，如 2feb6327-d4f6-800f-9d49-e68a6280a44c（勿填页面 ID）"
+                    className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handlePushToNotion}
+                  className="bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-lg text-sm hover:bg-black active:scale-95 transition-all shadow-sm hover:shadow"
+                >
+                  推送到 Notion
+                </button>
+              </div>
+              {notionResult && (
+                <div
+                  className={`mt-6 p-4 rounded-xl text-sm border ${
+                    notionResult.success
+                      ? 'bg-green-50 text-green-800 border-green-100'
+                      : 'bg-red-50 text-red-800 border-red-100'
+                  }`}
+                >
+                  <p className="font-semibold">{notionResult.message}</p>
+                  {notionResult.url && (
+                    <p className="mt-2 text-xs break-all">
+                      页面链接:{' '}
+                      <a href={notionResult.url} target="_blank" rel="noreferrer" className="underline">
+                        {notionResult.url}
+                      </a>
+                    </p>
+                  )}
                 </div>
               )}
             </div>

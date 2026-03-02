@@ -44,6 +44,62 @@ export default defineConfig(({ mode }) => {
           configureServer(server) {
             const outputDir = path.resolve(__dirname, 'medias/docs');
 
+            // POST: 使用指定 Notion 配置将某个已生成的 Markdown 文件插入到目标数据库中
+            server.middlewares.use('/api/notion-insert', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: { success: boolean; message: string; pageId?: string; url?: string }) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      filename?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
+                    };
+                    const filename = parsed.filename?.trim();
+                    const notionApiKey = parsed.notionApiKey?.trim();
+                    const notionDatabaseId = parsed.notionDatabaseId?.trim();
+
+                    if (!filename || !notionApiKey || !notionDatabaseId) {
+                      send(400, {
+                        success: false,
+                        message: '缺少必需参数: filename / notionApiKey / notionDatabaseId',
+                      });
+                      return;
+                    }
+
+                    const filePath = path.join(outputDir, filename);
+                    if (!fs.existsSync(filePath)) {
+                      send(404, {
+                        success: false,
+                        message: 'Markdown 文件不存在: ' + filename,
+                      });
+                      return;
+                    }
+
+                    const { createPageFromMarkdown } = await import('./server/notion');
+                    const result = await createPageFromMarkdown(filePath, {
+                      apiKey: notionApiKey,
+                      databaseId: notionDatabaseId,
+                    });
+                    send(result.success ? 200 : 500, result);
+                  } catch (err: any) {
+                    console.error('[notion-insert]', err);
+                    send(500, {
+                      success: false,
+                      message: err?.message || 'Notion 插入失败',
+                    });
+                  }
+                })();
+              });
+            });
+
             // GET 微信配置(用于前端展示默认值,可按需脱敏)
             server.middlewares.use('/api/wechat-config', (req, res, next) => {
               if (req.method !== 'GET') return next();
