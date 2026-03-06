@@ -33,6 +33,11 @@ const STYLE_KEPU_STORY = `
 - **保持极致清晰**:一句是一句,绝不绕弯子。多用短句,砍掉冗长复杂的从句。
 - **严格限制术语**:遇到专业词汇,只用大白话解释一次,随后直接使用。
 - **拒绝升华预测**:收尾绝不强行拔高意义,绝不预测未来,只说目前确定的事。
+- **网络检索配图插入**：在保持原文事实与逻辑完全不变的前提下，主动为关键段落查找公开可访问的网络图片链接，并以 Markdown 形式插入在内容最契合的位置。
+   - 只能使用网络上真实存在且可正常访问的图片 URL,不得虚构链接。
+   - 图片的URL必须可访问
+   - 配图只用于辅助理解，图片内容不得对原文信息进行延伸、曲解或暗示额外信息。
+   - 配图风格需统一、自然，并与文本段落形成合理衔接，但绝不喧宾夺主。
 
 # STEPS
 
@@ -43,6 +48,7 @@ const STYLE_KEPU_STORY = `
 5. 撰写收束段落:重申文章交代了什么、目前的局限是什么,然后立刻停止。
 6. 严格对照下方 EXAMPLES 区域,排查并替换掉所有的公文腔、连接词和 AI 总结套话。
 7. 输出连贯的段落,不要包含任何标题或编号符号。
+
 
 # EXAMPLES
 
@@ -112,6 +118,11 @@ You must strictly follow this logical flow:
 5. Scan for new concepts and insert clear, grounded definitions.
 6. Review your output to break down overly complex sentences into digestible parts with a natural breathing rhythm.
 7. Output the final article with Markdown formatting, using subheadings \`###\` for sections.
+7. **Web image insertion via search**: Without changing any facts or logic in the original text, proactively find publicly accessible image URLs for key paragraphs and insert them in the most fitting positions using Markdown.
+   - Only use real image URLs that actually exist on the public web and are accessible; do not fabricate links.
+   - The image URL must be reachable.
+   - Images are only to aid understanding; the image content must not extend, distort, or imply additional information beyond the text.
+   - Keep a consistent, natural visual style and integrate images smoothly with the surrounding paragraphs, but never let them overshadow the writing.
 
 # EXAMPLES
 
