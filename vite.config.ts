@@ -111,6 +111,83 @@ export default defineConfig(({ mode }) => {
               });
             });
 
+            // POST: 通过远程 Markdown 链接下载内容并直接推送到 Notion 数据库
+            // 入参: { mdUrl, notionApiKey, notionDatabaseId }
+            server.middlewares.use('/api/notion-from-url', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: { success: boolean; message: string; pageId?: string; url?: string }) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      mdUrl?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
+                    };
+                    const mdUrl = parsed.mdUrl?.trim();
+                    const notionApiKey = parsed.notionApiKey?.trim();
+                    const notionDatabaseId = parsed.notionDatabaseId?.trim();
+
+                    if (!mdUrl || !notionApiKey || !notionDatabaseId) {
+                      send(400, {
+                        success: false,
+                        message: '缺少必需参数: mdUrl / notionApiKey / notionDatabaseId',
+                      });
+                      return;
+                    }
+
+                    const resp = await fetch(mdUrl);
+                    if (!resp.ok) {
+                      send(502, {
+                        success: false,
+                        message: `下载 Markdown 失败(${resp.status}): ${resp.statusText}`,
+                      });
+                      return;
+                    }
+                    const content = await resp.text();
+                    if (!content.trim()) {
+                      send(400, {
+                        success: false,
+                        message: '远程 Markdown 内容为空',
+                      });
+                      return;
+                    }
+
+                    // 生成随机文件名,与现有保存逻辑保持一致
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    let name = '';
+                    for (let i = 0; i < 10; i++) {
+                      name += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    const filename = `${name}.md`;
+
+                    fs.mkdirSync(outputDir, { recursive: true });
+                    const filePath = path.join(outputDir, filename);
+                    fs.writeFileSync(filePath, content, 'utf8');
+
+                    const { createPageFromMarkdown } = await import('./server/notion');
+                    const result = await createPageFromMarkdown(filePath, {
+                      apiKey: notionApiKey,
+                      databaseId: notionDatabaseId,
+                    });
+                    send(result.success ? 200 : 500, result);
+                  } catch (err: any) {
+                    console.error('[notion-from-url]', err);
+                    send(500, {
+                      success: false,
+                      message: err?.message || 'Notion 推送失败',
+                    });
+                  }
+                })();
+              });
+            });
+
             // GET 微信配置(用于前端展示默认值,可按需脱敏)
             server.middlewares.use('/api/wechat-config', (req, res, next) => {
               if (req.method !== 'GET') return next();

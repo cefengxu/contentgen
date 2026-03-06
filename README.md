@@ -136,4 +136,18 @@ curl -X POST http://localhost:3000/api/run-pipeline \
     "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
   }'
 
+curl -X POST http://localhost:3000/api/notion-from-url \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mdUrl": "https://cdn.hailuoai.com/cdn_upload/20260306/472942398175117321/372253807960806/150010_e5a9/workspace/article_20260306.md",
+    "notionApiKey": "ntn_xxx",
+    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
+  }'
+
+{
+  "success": true,
+  "message": "已成功在 Notion 数据库中创建记录。",
+  "pageId": "xxxxxx",
+  "url": "https://www.notion.so/xxxxxx"
+}
 ```
