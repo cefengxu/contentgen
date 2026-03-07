@@ -19,7 +19,7 @@ function isRetryableNetworkError(err: unknown): boolean {
 }
 
 /**
- * 带超时与重试的 fetch：网络瞬时错误（如 ECONNRESET）时自动重试，便于在代理/防火墙不稳定时仍能访问 Notion API。
+ * 带超时与重试的 fetch：网络瞬时错误（如 ECONNRESET）时自动重试,便于在代理/防火墙不稳定时仍能访问 Notion API。
  */
 async function fetchWithRetry(
   url: string,
@@ -99,7 +99,7 @@ async function fetchDatabaseMeta(config: NotionConfig): Promise<NotionDatabase> 
     const msg = detail || resp.statusText;
     if (resp.status === 404 || (typeof msg === 'string' && (msg.includes('Could not find') || msg.includes('object_not_found')))) {
       throw new Error(
-        `未找到该 ID 对应的数据库。请确认填写的是「数据库」的 ID（而非包含该数据库的页面 ID）。在 Notion 中打开数据库 → 右上角「⋯」→「复制链接」，链接中的 UUID 即为数据库 ID，例如：2feb6327-d4f6-800f-9d49-e68a6280a44c。原始错误：${msg}`,
+        `未找到该 ID 对应的数据库。请确认填写的是「数据库」的 ID（而非包含该数据库的页面 ID）。在 Notion 中打开数据库 → 右上角「⋯」→「复制链接」,链接中的 UUID 即为数据库 ID,例如：2feb6327-d4f6-800f-9d49-e68a6280a44c。原始错误：${msg}`,
       );
     }
     throw new Error(`获取 Notion 数据库结构失败(${resp.status}): ${msg}`);
@@ -113,7 +113,7 @@ function pickTitleProperty(db: NotionDatabase): string {
   const props = db.properties ?? {};
   const keys = Object.keys(props);
 
-  // 1) 若数据库中有 TITLE 字段则优先使用（与当前目标库结构一致，避免 API 返回 type 格式不同导致误用 Name）
+  // 1) 若数据库中有 TITLE 字段则优先使用（与当前目标库结构一致,避免 API 返回 type 格式不同导致误用 Name）
   if (keys.includes('TITLE')) return 'TITLE';
 
   // 2) 按 Notion 返回的 type 识别 title（兼容大小写及字符串格式）
@@ -126,11 +126,11 @@ function pickTitleProperty(db: NotionDatabase): string {
   if (keys.includes('Title')) return 'Title';
   if (keys.includes('Name')) return 'Name';
 
-  // 4) 取第一个属性名，避免使用不存在的字段名
+  // 4) 取第一个属性名,避免使用不存在的字段名
   return keys[0] ?? 'Name';
 }
 
-/** 今日日期 YYYY-MM-DD，用于 Created 等日期字段 */
+/** 今日日期 YYYY-MM-DD,用于 Created 等日期字段 */
 function todayISO(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -139,7 +139,7 @@ function todayISO(): string {
   return `${y}-${m}-${day}`;
 }
 
-/** 为 Status/Select 型属性设置选项值（Notion 新 Status 用 status，旧 Select 用 select） */
+/** 为 Status/Select 型属性设置选项值（Notion 新 Status 用 status,旧 Select 用 select） */
 function setSelectOrStatus(prop: NotionDatabaseProperty | undefined, optionName: string): any {
   if (!prop) return undefined;
   if (prop.type === 'status') return { status: { name: optionName } };
@@ -148,8 +148,8 @@ function setSelectOrStatus(prop: NotionDatabaseProperty | undefined, optionName:
 }
 
 /**
- * 在已设置的 title 基础上，按数据库结构补充默认属性：STATUS / WECHAT / WWW 为默认选项，Created 为今日。
- * 仅当数据库中存在对应字段时才添加，避免与不同结构的数据库不兼容。
+ * 在已设置的 title 基础上,按数据库结构补充默认属性：STATUS / WECHAT / WWW 为默认选项,Created 为今日。
+ * 仅当数据库中存在对应字段时才添加,避免与不同结构的数据库不兼容。
  */
 function applyDefaultProperties(
   db: NotionDatabase,
@@ -238,8 +238,8 @@ function markdownToParagraphBlocks(markdown: string): any[] {
 
 /**
  * 使用指定的 Markdown 文件内容在 Notion 数据库中创建一条新记录。
- * - 会先获取数据库结构，自动识别 title 属性名称；
- * - 设置 TITLE（来自 front-matter 或文件名），并按数据库结构补充默认属性：STATUS=未开始，WECHAT/WWW=PED，Created=今日；
+ * - 会先获取数据库结构,自动识别 title 属性名称；
+ * - 设置 TITLE（来自 front-matter 或文件名）,并按数据库结构补充默认属性：STATUS=未开始,WECHAT/WWW=PED,Created=今日；
  * - 将 Markdown 正文按段落拆分为 paragraph blocks 写入页面内容。
  */
 export async function createPageFromMarkdown(

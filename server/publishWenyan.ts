@@ -52,7 +52,7 @@ export async function publishWenyan(
   }
 }
 
-/** 后台执行发布：启动命令后立即返回，不等待 CLI 结束。与前端「确认发布到微信」按钮行为一致，提交即视为成功。 */
+/** 后台执行发布：启动命令后立即返回,不等待 CLI 结束。与前端「确认发布到微信」按钮行为一致,提交即视为成功。 */
 export function publishWenyanBackground(
   filePath: string,
   env?: { WECHAT_APP_ID?: string; WECHAT_APP_SECRET?: string }
@@ -83,6 +83,6 @@ export function publishWenyanBackground(
 
   return {
     success: true,
-    message: '已提交发布到微信，请稍后在公众号后台查看。',
+    message: '已提交发布到微信,请稍后在公众号后台查看。',
   };
 }

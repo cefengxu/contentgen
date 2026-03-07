@@ -2,7 +2,7 @@ import { GenerationOptions } from '../types';
 import { buildArticleSystemInstruction } from './articleSystemInstruction';
 import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
-/** 从环境变量读取的 OpenAI 兼容 API 配置（OPENAI_API_URL 为完整地址，无需拼接路径） */
+/** 从环境变量读取的 OpenAI 兼容 API 配置（OPENAI_API_URL 为完整地址,无需拼接路径） */
 const getApiConfig = () => {
   const apiUrl = (process.env.OPENAI_API_URL || '').replace(/\/$/, '');
   const apiKey = process.env.OPENAI_API_KEY || '';
@@ -77,13 +77,13 @@ export const generateArticle = async (
 };
 
 /**
- * 翻译原文并生成文章(OpenAI 兼容)，风格固定为农夫山泉，无读者/长度/风格参数
+ * 翻译原文并生成文章(OpenAI 兼容),风格固定为农夫山泉,无读者/长度/风格参数
  */
 export const translateArticle = async (
   rawData: string,
 ): Promise<string> => {
   const systemInstruction = buildTranslateSystemInstruction(rawData);
-  const userContent = '请严格按上述风格要求，将抓取内容翻译并整理为 Markdown 正文。';
+  const userContent = '请严格按上述风格要求,将抓取内容翻译并整理为 Markdown 正文。';
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemInstruction },
@@ -92,21 +92,70 @@ export const translateArticle = async (
   return chatCompletions(messages);
 };
 
+export interface GeneratedTitleMeta {
+  title: string;
+  keywords: string[];
+}
+
 /**
- * 根据已生成的文章正文，生成一个适合微信公众号的标题（单行纯文本，不含引号）
+ * 根据已生成的文章正文,生成一个适合微信公众号的标题 + 3-5 个文章关键字。
+ * 返回结构化结果,方便上层分别使用标题与关键字。
  */
-export const generateTitle = async (articleContent: string): Promise<string> => {
+export const generateTitleAndKeywords = async (articleContent: string): Promise<GeneratedTitleMeta> => {
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: '你是一位深谙爆款逻辑的微信公众号主编。请根据文章正文，创作一个极其抓人眼球、直击人性、让人忍不住想点击的“标题党”标题。\n\n策略指南:- 制造反差:利用认知偏差或冲突，打破读者的思维惯性;- 利益钩子:明确展示读者能获得的价值、干货或避坑指南;- 情绪共鸣:精准戳中焦虑、好奇、愤怒或温情等情绪点;- 设置悬念:话留一半，或利用“为什么”、“竟然”引导探索欲;\n\n硬性约束:- 字数严格控制在 10-20 字之间;- 不使用引号、书名号或任何成对的标点符号包裹标题;- 严禁输出任何解释、分析或前缀，只输出标题文本;',    },
+      content:
+        '你是一位深谙爆款逻辑的微信公众号主编兼选题编辑。' +
+        '请根据文章正文,同时生成一个“标题党”标题和 3-5 个概括文章核心内容的中文关键字。\n\n' +
+        '返回格式必须是严格的 JSON,对象结构为：' +
+        '{"title": "标题文本", "keywords": ["关键字1","关键字2","关键字3"]}。\n\n' +
+        '【标题要求】\n' +
+        '- 字数严格控制在 10-20 字之间；\n' +
+        '- 不使用引号、书名号或任何成对的标点符号包裹标题；\n' +
+        '- 只输出标题文本,不要任何解释；\n' +
+        '- 风格抓人眼球、直击人性,兼顾信息密度。\n\n' +
+        '【关键字要求】\n' +
+        '- keywords 必须是一个数组；\n' +
+        '- 每个元素是简短的中文词语或短语（2-8 个字）,用于描述主题、技术、场景或人群；\n' +
+        '- 不要带 #、不带书名号/引号；\n' +
+        '- 建议 3-5 个；\n' +
+        '- 只在 JSON 的 keywords 字段中给出,不要在 JSON 外重复输出。',
+    },
     {
       role: 'user',
-      content: `请根据以下文章正文生成标题：\n\n${articleContent.slice(0, 1500)}`,
+      content: `请根据以下文章正文生成标题和关键字（仅按上面要求返回 JSON）：\n\n${articleContent.slice(0, 1500)}`,
     },
   ];
+
   const raw = await chatCompletions(messages);
-  return raw.trim().replace(/^["'「『【]|["'」』】]$/g, '');
+
+  try {
+    const data = JSON.parse(raw) as { title?: string; keywords?: unknown };
+    const title = (data.title ?? '').toString().trim();
+    const kwRaw = Array.isArray(data.keywords) ? data.keywords : [];
+    const keywords = kwRaw
+      .map((k) => (k ?? '').toString().trim())
+      .filter((k) => k.length > 0);
+
+    if (!title) {
+      throw new Error('empty title from JSON');
+    }
+
+    return { title, keywords };
+  } catch {
+    // 解析失败时退化为仅生成标题,不影响现有逻辑
+    const fallbackTitle = await generateTitle(articleContent);
+    return { title: fallbackTitle, keywords: [] };
+  }
+};
+
+/**
+ * 兼容旧接口：只返回标题文本
+ */
+export const generateTitle = async (articleContent: string): Promise<string> => {
+  const meta = await generateTitleAndKeywords(articleContent);
+  return meta.title;
 };
 
 export interface ChatSession {

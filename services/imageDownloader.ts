@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
-// duck-duck-scrape 当前没有官方类型声明，先用 require + any 方式接入
+// duck-duck-scrape 当前没有官方类型声明,先用 require + any 方式接入
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { imageSearch } = require('duck-duck-scrape') as { imageSearch: (query: string, opts: any) => Promise<any[]> };
 
@@ -11,7 +11,7 @@ export interface ImageDownloadOptions {
 
 /**
  * DuckDuckGo 图片搜索 + 下载
- * 通用工具函数，可在任意 Node 环境下复用
+ * 通用工具函数,可在任意 Node 环境下复用
  */
 export async function searchAndDownloadImages(
   query: string,

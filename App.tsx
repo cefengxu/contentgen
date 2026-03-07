@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStatus, ArticleData, GenerationOptions, LLMProvider, SearchEngine } from './types';
 import { fetchGlobalContext } from './services/search';
-import { generateArticle, translateArticle, generateTitle } from './services/llm_openai';
-import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitle as generateTitleGemini } from './services/llm_gemini';
+import { generateArticle, translateArticle, generateTitleAndKeywords as generateTitleAndKeywordsOpenAI } from './services/llm_openai';
+import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitleAndKeywords as generateTitleAndKeywordsGemini } from './services/llm_gemini';
 import ArticleDisplay from './components/ArticleDisplay';
 import ChatBot from './components/ChatBot';
 
@@ -72,7 +72,7 @@ const DEFAULT_DOC_PROMPT = `你是一名文档结构化解析专家。
 
 你的目标是: **生成一份准确、完整、可用于程序处理的文档结构化结果。**`;
 
-/** 生成当前系统时间戳，格式 YYYY-MM-DD HH:mm，用于 front-matter title */
+/** 生成当前系统时间戳,格式 YYYY-MM-DD HH:mm,用于 front-matter title */
 const getTimestamp = (): string => {
   const d = new Date();
   const Y = d.getFullYear();
@@ -134,10 +134,20 @@ const App: React.FC = () => {
         ? await generateArticleGemini(keyword, rawData, options)
         : await generateArticle(keyword, rawData, options);
 
-      // 为生成的文章增加 Front-matter,并随机选择封面
-      const articleTitle = await (provider === 'Gemini'
-        ? generateTitleGemini(generatedContent)
-        : generateTitle(generatedContent)).catch(() => getTimestamp());
+      // 为生成的文章增加 Front-matter、关键字行（供正文展示与后续按关键字找图）并随机选择封面
+      let articleTitle = getTimestamp();
+      let keywordsLine = '';
+      try {
+        const meta = provider === 'Gemini'
+          ? await generateTitleAndKeywordsGemini(generatedContent)
+          : await generateTitleAndKeywordsOpenAI(generatedContent);
+        articleTitle = meta.title || getTimestamp();
+        if (meta.keywords?.length) {
+          keywordsLine = `![ ${meta.keywords.join(',')} ](https://the/url/of/image)`;
+        }
+      } catch {
+        articleTitle = getTimestamp();
+      }
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
@@ -148,7 +158,7 @@ const App: React.FC = () => {
         '',
       ];
       const frontMatter = frontMatterLines.join('\n');
-      const finalContent = frontMatter + generatedContent.trimStart();
+      const finalContent = frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
       // 将带有 Front-matter 的内容保存为本地 Markdown 文件
       const saveResp = await fetch('/api/save-markdown', {
@@ -218,8 +228,18 @@ const App: React.FC = () => {
       const usedKeyword = 'PDF 文档';
       const generatedContent = await generateArticleGemini(usedKeyword, rawDataFromPdf, options);
 
-      // 与「立即整合」一致的 Front-matter + 随机封面 + 本地保存逻辑
-      const articleTitle = await generateTitleGemini(generatedContent).catch(() => getTimestamp());
+      // 与「立即整合」一致的 Front-matter + 关键字行 + 随机封面 + 本地保存逻辑
+      let articleTitle = getTimestamp();
+      let keywordsLine = '';
+      try {
+        const meta = await generateTitleAndKeywordsGemini(generatedContent);
+        articleTitle = meta.title || getTimestamp();
+        if (meta.keywords?.length) {
+          keywordsLine = `![ ${meta.keywords.join(',')} ](https://the/url/of/image)`;
+        }
+      } catch {
+        articleTitle = getTimestamp();
+      }
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
@@ -230,7 +250,7 @@ const App: React.FC = () => {
         '',
       ];
       const frontMatter = frontMatterLines.join('\n');
-      const finalContent = frontMatter + generatedContent.trimStart();
+      const finalContent = frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
       const saveResp = await fetch('/api/save-markdown', {
         method: 'POST',
@@ -289,9 +309,19 @@ const App: React.FC = () => {
         ? await generateArticleGemini(usedKeyword, rawData, options)
         : await generateArticle(usedKeyword, rawData, options);
 
-      const articleTitle = await (provider === 'Gemini'
-        ? generateTitleGemini(generatedContent)
-        : generateTitle(generatedContent)).catch(() => getTimestamp());
+      let articleTitle = getTimestamp();
+      let keywordsLine = '';
+      try {
+        const meta = provider === 'Gemini'
+          ? await generateTitleAndKeywordsGemini(generatedContent)
+          : await generateTitleAndKeywordsOpenAI(generatedContent);
+        articleTitle = meta.title || getTimestamp();
+        if (meta.keywords?.length) {
+          keywordsLine = `![ ${meta.keywords.join(',')} ](https://the/url/of/image)`;
+        }
+      } catch {
+        articleTitle = getTimestamp();
+      }
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
@@ -302,7 +332,7 @@ const App: React.FC = () => {
         '',
       ];
       const frontMatter = frontMatterLines.join('\n');
-      const finalContent = frontMatter + generatedContent.trimStart();
+      const finalContent = frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
       const saveResp = await fetch('/api/save-markdown', {
         method: 'POST',
@@ -336,7 +366,7 @@ const App: React.FC = () => {
     }
   };
 
-  /** 翻译原文：用户输入的文本直接翻译，风格固定为农夫山泉，不依赖读者/长度/风格设置 */
+  /** 翻译原文：用户输入的文本直接翻译,风格固定为农夫山泉,不依赖读者/长度/风格设置 */
   const handleTranslate = async () => {
     if (!docRawText.trim()) return;
 
@@ -356,9 +386,19 @@ const App: React.FC = () => {
         ? await translateArticleGemini(rawData)
         : await translateArticle(rawData);
 
-      const articleTitle = await (provider === 'Gemini'
-        ? generateTitleGemini(generatedContent)
-        : generateTitle(generatedContent)).catch(() => getTimestamp());
+      let articleTitle = getTimestamp();
+      let keywordsLine = '';
+      try {
+        const meta = provider === 'Gemini'
+          ? await generateTitleAndKeywordsGemini(generatedContent)
+          : await generateTitleAndKeywordsOpenAI(generatedContent);
+        articleTitle = meta.title || getTimestamp();
+        if (meta.keywords?.length) {
+          keywordsLine = `![ ${meta.keywords.join(',')} ](https://the/url/of/image)`;
+        }
+      } catch {
+        articleTitle = getTimestamp();
+      }
       const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
       const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
       const frontMatterLines = [
@@ -369,7 +409,7 @@ const App: React.FC = () => {
         '',
       ];
       const frontMatter = frontMatterLines.join('\n');
-      const finalContent = frontMatter + generatedContent.trimStart();
+      const finalContent = frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
       const saveResp = await fetch('/api/save-markdown', {
         method: 'POST',
@@ -797,17 +837,17 @@ const App: React.FC = () => {
                       value={docRawText}
                       onChange={(e) => setDocRawText(e.target.value)}
                       rows={12}
-                      placeholder="在此粘贴待翻译的原文（支持英文等外语），将翻译为地道中文并输出 Markdown 正文…"
+                      placeholder="在此粘贴待翻译的原文（支持英文等外语）,将翻译为地道中文并输出 Markdown 正文…"
                       className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-xs leading-relaxed focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-y min-h-[12rem]"
                       disabled={docParseStatus === 'loading' || status === AppStatus.GENERATING || status === AppStatus.SEARCHING}
                     />
                     <p className="mt-1 text-[11px] text-gray-400">
-                      风格固定为「农夫山泉」：忠于原文、地道中文、消除翻译腔，不可更改。
+                      风格固定为「农夫山泉」：忠于原文、地道中文、消除翻译腔,不可更改。
                     </p>
                   </label>
                   <div className="rounded-lg border border-gray-100 bg-amber-50/60 px-3 py-3">
                     <p className="text-xs text-gray-700">
-                      翻译模式不使用读者人群、文章风格、目标长度等设置，直接按固定风格输出。
+                      翻译模式不使用读者人群、文章风格、目标长度等设置,直接按固定风格输出。
                     </p>
                   </div>
                 </>
@@ -1034,7 +1074,7 @@ const App: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10 max-w-4xl mx-auto mt-8 transition-all">
               <h3 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-50 pb-4">同步到 Notion 数据库</h3>
               <p className="text-sm text-gray-500 mb-6">
-                填写 Notion 集成的 API Key 与目标「数据库」的 Database ID（勿填页面 ID：数据库在页面内部时，请从数据库链接或「⋯」→ 复制链接 中取 UUID，如 2feb6327-d4f6-800f-9d49-e68a6280a44c）。点击「推送到 Notion」后，当前文章将作为新记录插入，STATUS / WECHAT / WWW 使用默认值，Created 为今日。
+                填写 Notion 集成的 API Key 与目标「数据库」的 Database ID（勿填页面 ID：数据库在页面内部时,请从数据库链接或「⋯」→ 复制链接 中取 UUID,如 2feb6327-d4f6-800f-9d49-e68a6280a44c）。点击「推送到 Notion」后,当前文章将作为新记录插入,STATUS / WECHAT / WWW 使用默认值,Created 为今日。
               </p>
               <div className="space-y-4 mb-6">
                 <label className="block">
@@ -1053,7 +1093,7 @@ const App: React.FC = () => {
                     type="text"
                     value={notionDatabaseId}
                     onChange={(e) => setNotionDatabaseId(e.target.value)}
-                    placeholder="数据库 UUID，如 2feb6327-d4f6-800f-9d49-e68a6280a44c（勿填页面 ID）"
+                    placeholder="数据库 UUID,如 2feb6327-d4f6-800f-9d49-e68a6280a44c（勿填页面 ID）"
                     className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
                   />
                 </label>

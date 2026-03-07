@@ -2,8 +2,16 @@ import path from 'path';
 import fs from 'fs';
 import type { LLMProvider, SearchEngine, GenerationOptions } from '../types';
 import { fetchGlobalContext } from './search';
-import { generateArticle as generateArticleOpenAI, translateArticle as translateArticleOpenAI, generateTitle as generateTitleOpenAI } from './llm_openai';
-import { generateArticle as generateArticleGemini, translateArticle as translateArticleGemini, generateTitle as generateTitleGemini } from './llm_gemini';
+import {
+  generateArticle as generateArticleOpenAI,
+  translateArticle as translateArticleOpenAI,
+  generateTitleAndKeywords as generateTitleAndKeywordsOpenAI,
+} from './llm_openai';
+import {
+  generateArticle as generateArticleGemini,
+  translateArticle as translateArticleGemini,
+  generateTitleAndKeywords as generateTitleAndKeywordsGemini,
+} from './llm_gemini';
 import { publishWenyanBackground, type PublishResult } from '../server/publishWenyan';
 import { createPageFromMarkdown, type NotionInsertResult } from '../server/notion';
 
@@ -38,26 +46,26 @@ function randomFilename(): string {
 }
 
 export interface RunPipelineParams {
-  /** 模型: OpenAI | Gemini，默认 Gemini */
+  /** 模型: OpenAI | Gemini,默认 Gemini */
   provider?: LLMProvider;
-  /** 读者人群，需为预设 value 之一，不传则用默认 */
+  /** 读者人群,需为预设 value 之一,不传则用默认 */
   audience?: string;
-  /** 文章风格，需为预设 value 之一，不传则用默认 */
+  /** 文章风格,需为预设 value 之一,不传则用默认 */
   style?: string;
-  /** 目标长度，需为预设 value 之一，不传则用默认 */
+  /** 目标长度,需为预设 value 之一,不传则用默认 */
   length?: string;
-  /** 搜索引擎：网络搜索时使用，Tavily | Exa，默认 Tavily */
+  /** 搜索引擎：网络搜索时使用,Tavily | Exa,默认 Tavily */
   engine?: SearchEngine;
-  /** 话题关键词：与 rawText 二选一，网络搜索时必填 */
+  /** 话题关键词：与 rawText 二选一,网络搜索时必填 */
   keyword?: string;
-  /** 原始文本：与 keyword 二选一，直接作为抓取内容生成文章 */
+  /** 原始文本：与 keyword 二选一,直接作为抓取内容生成文章 */
   rawText?: string;
-  /** 翻译模式：传 true 且提供 rawText 时，使用固定农夫山泉风格翻译，忽略 audience/style/length */
+  /** 翻译模式：传 true 且提供 rawText 时,使用固定农夫山泉风格翻译,忽略 audience/style/length */
   translate?: boolean;
-  /** 发布到微信：可选，不传则不执行发布 */
+  /** 发布到微信：可选,不传则不执行发布 */
   wechatAppId?: string;
   wechatAppSecret?: string;
-  /** 推送到 Notion：可选，不传或缺任何一项则不执行推送 */
+  /** 推送到 Notion：可选,不传或缺任何一项则不执行推送 */
   notionApiKey?: string;
   notionDatabaseId?: string;
 }
@@ -92,7 +100,7 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
   const keywordInput = params.keyword?.trim();
 
   if (rawTextInput && params.translate) {
-    // 翻译模式：固定农夫山泉风格，忽略 audience/style/length
+    // 翻译模式：固定农夫山泉风格,忽略 audience/style/length
     return runTranslatePipeline({
       provider,
       rawText: rawTextInput,
@@ -159,16 +167,29 @@ async function runSearchPipeline(opts: {
 
   const { text: rawData, sources } = await fetchGlobalContext(opts.keyword, opts.engine);
   if (!rawData?.trim()) {
-    return { success: false, message: '未能获取到任何有效信息，请检查关键词或 API 额度。' };
+    return { success: false, message: '未能获取到任何有效信息,请检查关键词或 API 额度。' };
   }
 
   const generatedContent = opts.provider === 'Gemini'
     ? await generateArticleGemini(opts.keyword, rawData, options)
     : await generateArticleOpenAI(opts.keyword, rawData, options);
 
-  const articleTitle = await (opts.provider === 'Gemini'
-    ? generateTitleGemini(generatedContent)
-    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
+  let articleTitle = getTimestamp();
+  let keywordsLine = '';
+  try {
+    const meta =
+      opts.provider === 'Gemini'
+        ? await generateTitleAndKeywordsGemini(generatedContent)
+        : await generateTitleAndKeywordsOpenAI(generatedContent);
+    articleTitle = meta.title || getTimestamp();
+    if (meta.keywords && meta.keywords.length > 0) {
+      const joined = meta.keywords.join(',');
+      keywordsLine = `![ ${joined} ](https://the/url/of/image)`;
+    }
+  } catch {
+    // 保底使用时间戳作为标题
+    articleTitle = getTimestamp();
+  }
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
@@ -178,7 +199,8 @@ async function runSearchPipeline(opts: {
     '---',
     '',
   ].join('\n');
-  const finalContent = frontMatter + generatedContent.trimStart();
+  const finalContent =
+    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -212,8 +234,8 @@ async function runSearchPipeline(opts: {
     success: true,
     message:
       '文章已生成并保存' +
-      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
-      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
+      (publishResult ? ',已提交发布到微信' : '。未填写微信配置,未执行发布。') +
+      (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,
@@ -245,9 +267,21 @@ async function runRawTextPipeline(opts: {
     ? await generateArticleGemini(usedKeyword, opts.rawText, options)
     : await generateArticleOpenAI(usedKeyword, opts.rawText, options);
 
-  const articleTitle = await (opts.provider === 'Gemini'
-    ? generateTitleGemini(generatedContent)
-    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
+  let articleTitle = getTimestamp();
+  let keywordsLine = '';
+  try {
+    const meta =
+      opts.provider === 'Gemini'
+        ? await generateTitleAndKeywordsGemini(generatedContent)
+        : await generateTitleAndKeywordsOpenAI(generatedContent);
+    articleTitle = meta.title || getTimestamp();
+    if (meta.keywords && meta.keywords.length > 0) {
+      const joined = meta.keywords.join(',');
+      keywordsLine = `![ ${joined} ](https://the/url/of/image)`;
+    }
+  } catch {
+    articleTitle = getTimestamp();
+  }
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
@@ -257,7 +291,8 @@ async function runRawTextPipeline(opts: {
     '---',
     '',
   ].join('\n');
-  const finalContent = frontMatter + generatedContent.trimStart();
+  const finalContent =
+    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -291,8 +326,8 @@ async function runRawTextPipeline(opts: {
     success: true,
     message:
       '文章已生成并保存' +
-      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
-      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
+      (publishResult ? ',已提交发布到微信' : '。未填写微信配置,未执行发布。') +
+      (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,
@@ -314,9 +349,21 @@ async function runTranslatePipeline(opts: {
     ? await translateArticleGemini(opts.rawText)
     : await translateArticleOpenAI(opts.rawText);
 
-  const articleTitle = await (opts.provider === 'Gemini'
-    ? generateTitleGemini(generatedContent)
-    : generateTitleOpenAI(generatedContent)).catch(() => getTimestamp());
+  let articleTitle = getTimestamp();
+  let keywordsLine = '';
+  try {
+    const meta =
+      opts.provider === 'Gemini'
+        ? await generateTitleAndKeywordsGemini(generatedContent)
+        : await generateTitleAndKeywordsOpenAI(generatedContent);
+    articleTitle = meta.title || getTimestamp();
+    if (meta.keywords && meta.keywords.length > 0) {
+      const joined = meta.keywords.join(',');
+      keywordsLine = `![ ${joined} ](https://the/url/of/image)`;
+    }
+  } catch {
+    articleTitle = getTimestamp();
+  }
   const coverCandidates = ['greencover.jpg', 'yellowcover.jpg', 'bluecover.jpg'];
   const randomCover = coverCandidates[Math.floor(Math.random() * coverCandidates.length)];
   const frontMatter = [
@@ -326,7 +373,8 @@ async function runTranslatePipeline(opts: {
     '---',
     '',
   ].join('\n');
-  const finalContent = frontMatter + generatedContent.trimStart();
+  const finalContent =
+    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -360,8 +408,8 @@ async function runTranslatePipeline(opts: {
     success: true,
     message:
       '翻译文章已生成并保存' +
-      (publishResult ? '，已提交发布到微信' : '。未填写微信配置，未执行发布。') +
-      (notionResult ? (notionResult.success ? '，已推送到 Notion。' : '，推送到 Notion 失败。') : ''),
+      (publishResult ? ',已提交发布到微信' : '。未填写微信配置,未执行发布。') +
+      (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
     publishResult,

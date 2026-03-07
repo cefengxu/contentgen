@@ -24,27 +24,27 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 
 ## 对外服务接口：一键执行生文并发布
 
-系统提供 **POST `/api/run-pipeline`** 接口，可传入参数执行与前端一致的完整流程：**设置模型/读者/风格/长度 → 检索或原文本 → 生成文章 → 保存 Markdown → 可选发布到微信**。
+系统提供 **POST `/api/run-pipeline`** 接口,可传入参数执行与前端一致的完整流程：**设置模型/读者/风格/长度 → 检索或原文本 → 生成文章 → 保存 Markdown → 可选发布到微信**。
 
 ### 请求
 
 - **Method:** `POST`
 - **Content-Type:** `application/json`
-- **Body 参数（均为可选，未传则用默认）：**
+- **Body 参数（均为可选,未传则用默认）：**
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `provider` | string | 模型，见下「provider 可选值」 |
-| `audience` | string | 读者人群，见下「audience 可选值」 |
-| `style` | string | 文章风格，见下「style 可选值」 |
-| `length` | string | 目标长度，见下「length 可选值」 |
-| `engine` | string | 网络搜索引擎，见下「engine 可选值」 |
+| `provider` | string | 模型,见下「provider 可选值」 |
+| `audience` | string | 读者人群,见下「audience 可选值」 |
+| `style` | string | 文章风格,见下「style 可选值」 |
+| `length` | string | 目标长度,见下「length 可选值」 |
+| `engine` | string | 网络搜索引擎,见下「engine 可选值」 |
 | `keyword` | string | **与 rawText 二选一**。网络搜索时的话题关键词 |
-| `rawText` | string | **与 keyword 二选一**。原文本内容，直接作为抓取内容生成文章 |
-| `wechatAppId` | string | 公众号 AppID，与 `wechatAppSecret` 同时传入则执行发布到微信 |
+| `rawText` | string | **与 keyword 二选一**。原文本内容,直接作为抓取内容生成文章 |
+| `wechatAppId` | string | 公众号 AppID,与 `wechatAppSecret` 同时传入则执行发布到微信 |
 | `wechatAppSecret` | string | 公众号 AppSecret |
-| `notionApiKey` | string | Notion API Key，与 `notionDatabaseId` 同时传入则执行推送到 Notion |
-| `notionDatabaseId` | string | Notion Database ID（数据库 UUID），与 `notionApiKey` 同时传入则执行推送到 Notion |
+| `notionApiKey` | string | Notion API Key,与 `notionDatabaseId` 同时传入则执行推送到 Notion |
+| `notionDatabaseId` | string | Notion Database ID（数据库 UUID）,与 `notionApiKey` 同时传入则执行推送到 Notion |
 
 **provider 可选值（传 value）：**
 
@@ -94,7 +94,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 ### 响应
 
 - **200 / 400：** `{ success: boolean, message: string, filename?: string, title?: string, publishResult?: { success, message, stdout?, stderr? } }`
-- **500：** 服务器错误，同上结构，`success: false`。
+- **500：** 服务器错误,同上结构,`success: false`。
 
 ### 示例
 
@@ -109,7 +109,7 @@ curl -X POST http://localhost:3000/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{"rawText":"这里是原始素材内容...","wechatAppId":"wx...","wechatAppSecret":"..."}'
 
-# 翻译原文（风格固定为农夫山泉，忽略 audience/style/length）
+# 翻译原文（风格固定为农夫山泉,忽略 audience/style/length）
 curl -X POST http://localhost:3000/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{
