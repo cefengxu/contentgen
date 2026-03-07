@@ -68,6 +68,8 @@ export interface RunPipelineParams {
   /** 推送到 Notion：可选,不传或缺任何一项则不执行推送 */
   notionApiKey?: string;
   notionDatabaseId?: string;
+  /** 为 true 时在结果中返回完整文章内容（Markdown 字符串）,便于后续处理 */
+  returnContent?: boolean;
 }
 
 export interface RunPipelineResult {
@@ -75,6 +77,8 @@ export interface RunPipelineResult {
   message: string;
   filename?: string;
   title?: string;
+  /** 完整文章内容（含 Front-matter 的 Markdown）,仅当 runPipeline 传入 returnContent: true 时存在 */
+  content?: string;
   publishResult?: PublishResult;
   notionResult?: NotionInsertResult;
 }
@@ -99,6 +103,7 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
   const rawTextInput = params.rawText?.trim();
   const keywordInput = params.keyword?.trim();
 
+  const returnContent = params.returnContent === true;
   if (rawTextInput && params.translate) {
     // 翻译模式：固定农夫山泉风格,忽略 audience/style/length
     return runTranslatePipeline({
@@ -108,6 +113,7 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       wechatAppSecret: params.wechatAppSecret,
       notionApiKey: params.notionApiKey,
       notionDatabaseId: params.notionDatabaseId,
+      returnContent,
     });
   }
   if (rawTextInput) {
@@ -122,6 +128,7 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       wechatAppSecret: params.wechatAppSecret,
       notionApiKey: params.notionApiKey,
       notionDatabaseId: params.notionDatabaseId,
+      returnContent,
     });
   }
   if (keywordInput) {
@@ -137,6 +144,7 @@ export async function runPipeline(params: RunPipelineParams): Promise<RunPipelin
       wechatAppSecret: params.wechatAppSecret,
       notionApiKey: params.notionApiKey,
       notionDatabaseId: params.notionDatabaseId,
+      returnContent,
     });
   }
   return {
@@ -156,6 +164,7 @@ async function runSearchPipeline(opts: {
   wechatAppSecret?: string;
   notionApiKey?: string;
   notionDatabaseId?: string;
+  returnContent?: boolean;
 }): Promise<RunPipelineResult> {
   const options: GenerationOptions = {
     audience: opts.audience,
@@ -200,7 +209,7 @@ async function runSearchPipeline(opts: {
     '',
   ].join('\n');
   const finalContent =
-    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
+    frontMatter + (keywordsLine ? `\n${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -238,6 +247,7 @@ async function runSearchPipeline(opts: {
       (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
+    ...(opts.returnContent ? { content: finalContent } : {}),
     publishResult,
     notionResult,
   };
@@ -253,6 +263,7 @@ async function runRawTextPipeline(opts: {
   wechatAppSecret?: string;
   notionApiKey?: string;
   notionDatabaseId?: string;
+  returnContent?: boolean;
 }): Promise<RunPipelineResult> {
   const options: GenerationOptions = {
     audience: opts.audience,
@@ -292,7 +303,7 @@ async function runRawTextPipeline(opts: {
     '',
   ].join('\n');
   const finalContent =
-    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
+    frontMatter + (keywordsLine ? `\n${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -330,6 +341,7 @@ async function runRawTextPipeline(opts: {
       (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
+    ...(opts.returnContent ? { content: finalContent } : {}),
     publishResult,
     notionResult,
   };
@@ -342,6 +354,7 @@ async function runTranslatePipeline(opts: {
   wechatAppSecret?: string;
   notionApiKey?: string;
   notionDatabaseId?: string;
+  returnContent?: boolean;
 }): Promise<RunPipelineResult> {
   const usedKeyword = '翻译文章';
 
@@ -374,7 +387,7 @@ async function runTranslatePipeline(opts: {
     '',
   ].join('\n');
   const finalContent =
-    frontMatter + (keywordsLine ? `${keywordsLine}\n\n` : '') + generatedContent.trimStart();
+    frontMatter + (keywordsLine ? `\n${keywordsLine}\n\n` : '') + generatedContent.trimStart();
 
   const outputDir = path.join(__dirname, '..', 'medias', 'docs');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -412,6 +425,7 @@ async function runTranslatePipeline(opts: {
       (notionResult ? (notionResult.success ? ',已推送到 Notion。' : ',推送到 Notion 失败。') : ''),
     filename,
     title: articleTitle,
+    ...(opts.returnContent ? { content: finalContent } : {}),
     publishResult,
     notionResult,
   };

@@ -96,6 +96,17 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 - **200 / 400：** `{ success: boolean, message: string, filename?: string, title?: string, publishResult?: { success, message, stdout?, stderr? } }`
 - **500：** 服务器错误,同上结构,`success: false`。
 
+### 返回文章内容接口（便于后续处理）
+
+**POST `/api/run-pipeline-return-content`** 与 `run-pipeline` 使用相同 Body 参数,执行步骤 1～3（检索/原文本/翻译 → 生成文章 → 保存为 `medias/docs/xxx.md`）,并在响应 JSON 中返回 `content`（完整 Markdown 字符串）。若传入微信/Notion 参数,仍会执行发布/推送。
+
+- **响应（成功时）：** `{ success: true, message: string, filename?: string, title?: string, content?: string, publishResult?, notionResult? }`  
+  - JSON 中 `content` 的换行会以 `\n` 转义形式出现；用各语言 **JSON 解析**（如 `JSON.parse`）后得到的字符串即带真实换行的 Markdown,可正常写文件或渲染。
+
+**POST `/api/run-pipeline-return-markdown`** 参数同上,但**响应体为纯 Markdown**（`Content-Type: text/markdown`）,换行为真实换行,可直接重定向到文件或管道,无需解析 JSON。
+
+**POST `/api/upload-markdown-to-notion`** 输入原始 Markdown 文章,上传到指定 Notion 数据库。Body：`content`（必填,Markdown 字符串）、`notionApiKey`、`notionDatabaseId`（必填）。标题从 front-matter 的 `title` 解析,若无则用 "article"；响应格式同 Notion 创建结果（`success`, `message`, `pageId?`, `url?`）。
+
 ### 示例
 
 ```bash
@@ -136,4 +147,22 @@ curl -X POST http://localhost:3000/api/run-pipeline \
     "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
   }'
 
+# 返回文章内容（JSON 中的 content 需经 JSON 解析后得到真实换行的 Markdown）
+curl -X POST http://localhost:3000/api/run-pipeline-return-content \
+  -H "Content-Type: application/json" \
+  -d '{"keyword":"AI 大模型趋势","provider":"Gemini","engine":"Tavily"}'
+
+# 直接返回纯 Markdown 正文（真实换行）,可重定向为 .md 文件
+curl -X POST http://localhost:3000/api/run-pipeline-return-markdown \
+  -H "Content-Type: application/json" \
+  -d '{"keyword":"AI 大模型趋势","provider":"Gemini","engine":"Tavily"}' -o article.md
+
+# 将原始 Markdown 上传到指定 Notion 数据库
+curl -X POST http://localhost:3000/api/upload-markdown-to-notion \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "---\ntitle: 我的文章标题\n---\n\n这里是正文 Markdown...",
+    "notionApiKey": "ntn_xxx",
+    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
+  }'
 ```

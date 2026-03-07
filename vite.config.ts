@@ -176,6 +176,168 @@ export default defineConfig(({ mode }) => {
               });
             });
 
+            // POST 执行步骤 1～3（检索/原文本/翻译 → 生成文章 → 保存 md）,响应中直接返回文章内容 content,便于后续处理
+            server.middlewares.use('/api/run-pipeline-return-content', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: object) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      provider?: string;
+                      audience?: string;
+                      style?: string;
+                      length?: string;
+                      engine?: string;
+                      keyword?: string;
+                      rawText?: string;
+                      translate?: boolean;
+                      wechatAppId?: string;
+                      wechatAppSecret?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
+                    };
+                    const { runPipeline } = await import('./services/pipeline');
+                    const result = await runPipeline({
+                      provider: parsed.provider === 'OpenAI' ? 'OpenAI' : 'Gemini',
+                      audience: parsed.audience,
+                      style: parsed.style,
+                      length: parsed.length,
+                      engine: parsed.engine === 'Exa' ? 'Exa' : 'Tavily',
+                      keyword: parsed.keyword,
+                      rawText: parsed.rawText,
+                      translate: parsed.translate === true,
+                      wechatAppId: parsed.wechatAppId,
+                      wechatAppSecret: parsed.wechatAppSecret,
+                      notionApiKey: parsed.notionApiKey,
+                      notionDatabaseId: parsed.notionDatabaseId,
+                      returnContent: true,
+                    });
+                    send(result.success ? 200 : 400, result);
+                  } catch (err: any) {
+                    console.error('[run-pipeline-return-content]', err);
+                    send(500, {
+                      success: false,
+                      message: err?.message || '流程执行失败',
+                    });
+                  }
+                })();
+              });
+            });
+
+            // POST 执行步骤 1～3,响应体为纯 Markdown（真实换行）,Content-Type: text/markdown,便于重定向到文件或管道
+            server.middlewares.use('/api/run-pipeline-return-markdown', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const sendJson = (status: number, payload: object) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      provider?: string;
+                      audience?: string;
+                      style?: string;
+                      length?: string;
+                      engine?: string;
+                      keyword?: string;
+                      rawText?: string;
+                      translate?: boolean;
+                      wechatAppId?: string;
+                      wechatAppSecret?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
+                    };
+                    const { runPipeline } = await import('./services/pipeline');
+                    const result = await runPipeline({
+                      provider: parsed.provider === 'OpenAI' ? 'OpenAI' : 'Gemini',
+                      audience: parsed.audience,
+                      style: parsed.style,
+                      length: parsed.length,
+                      engine: parsed.engine === 'Exa' ? 'Exa' : 'Tavily',
+                      keyword: parsed.keyword,
+                      rawText: parsed.rawText,
+                      translate: parsed.translate === true,
+                      wechatAppId: parsed.wechatAppId,
+                      wechatAppSecret: parsed.wechatAppSecret,
+                      notionApiKey: parsed.notionApiKey,
+                      notionDatabaseId: parsed.notionDatabaseId,
+                      returnContent: true,
+                    });
+                    if (result.success && result.content !== undefined) {
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+                      res.end(result.content);
+                    } else {
+                      sendJson(result.success ? 200 : 400, { success: result.success, message: result.message });
+                    }
+                  } catch (err: any) {
+                    console.error('[run-pipeline-return-markdown]', err);
+                    sendJson(500, {
+                      success: false,
+                      message: err?.message || '流程执行失败',
+                    });
+                  }
+                })();
+              });
+            });
+
+            // POST 将原始 Markdown 文章上传到指定 Notion 数据库
+            server.middlewares.use('/api/upload-markdown-to-notion', (req, res, next) => {
+              if (req.method !== 'POST') return next();
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', () => {
+                const send = (status: number, payload: object) => {
+                  res.statusCode = status;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(payload));
+                };
+                (async () => {
+                  try {
+                    const parsed = JSON.parse(body || '{}') as {
+                      content?: string;
+                      notionApiKey?: string;
+                      notionDatabaseId?: string;
+                    };
+                    const content = typeof parsed.content === 'string' ? parsed.content.trim() : '';
+                    const apiKey = parsed.notionApiKey?.trim();
+                    const databaseId = parsed.notionDatabaseId?.trim();
+                    if (!content) {
+                      send(400, { success: false, message: '缺少 content（原始 Markdown 文章内容）' });
+                      return;
+                    }
+                    if (!apiKey || !databaseId) {
+                      send(400, { success: false, message: '缺少 notionApiKey 或 notionDatabaseId' });
+                      return;
+                    }
+                    const { createPageFromMarkdownContent } = await import('./server/notion');
+                    const result = await createPageFromMarkdownContent(content, {
+                      apiKey,
+                      databaseId,
+                    });
+                    send(result.success ? 200 : 400, result);
+                  } catch (err: any) {
+                    console.error('[upload-markdown-to-notion]', err);
+                    send(500, {
+                      success: false,
+                      message: err?.message || '上传到 Notion 失败',
+                    });
+                  }
+                })();
+              });
+            });
+
             // POST 使用指定微信参数执行 wenyan 发布,并返回执行结果
             server.middlewares.use('/api/publish', (req, res, next) => {
               if (req.method !== 'POST') return next();

@@ -311,3 +311,62 @@ export async function createPageFromMarkdown(
   };
 }
 
+/**
+ * 使用原始 Markdown 字符串在 Notion 数据库中创建一条新记录。
+ * 标题从 front-matter 的 title 解析，若无则用 "article"；正文与 createPageFromMarkdown 相同逻辑写入页面。
+ */
+export async function createPageFromMarkdownContent(
+  rawMarkdown: string,
+  config: NotionConfig,
+): Promise<NotionInsertResult> {
+  const { title, body } = extractTitleAndBody(rawMarkdown.trim(), 'article.md');
+  const db = await fetchDatabaseMeta(config);
+
+  const baseProperties: Record<string, any> = {
+    TITLE: {
+      title: [
+        {
+          type: 'text',
+          text: { content: title || 'article' },
+        },
+      ],
+    },
+  };
+  const properties = applyDefaultProperties(db, baseProperties);
+  const children = markdownToParagraphBlocks(body || rawMarkdown.trim());
+
+  const payload = {
+    parent: { database_id: config.databaseId },
+    properties,
+    children,
+  };
+
+  const resp = await fetchWithRetry(`${NOTION_API_BASE}/pages`, {
+    method: 'POST',
+    headers: buildHeaders(config.apiKey),
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    let detail = '';
+    try {
+      const data = await resp.json() as any;
+      detail = data?.message || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    return {
+      success: false,
+      message: `创建 Notion 页面失败(${resp.status}): ${detail || resp.statusText}`,
+    };
+  }
+
+  const data = await resp.json() as any;
+  return {
+    success: true,
+    message: '已成功在 Notion 数据库中创建记录。',
+    pageId: data?.id,
+    url: data?.url,
+  };
+}
+
