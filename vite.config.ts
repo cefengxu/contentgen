@@ -232,64 +232,15 @@ export default defineConfig(({ mode }) => {
             });
 
             // POST 执行步骤 1～3,响应体为纯 Markdown（真实换行）,Content-Type: text/markdown,便于重定向到文件或管道
+            // 注意:该接口已在对外文档中屏蔽,当前实现仅返回接口已停用,避免误用
             server.middlewares.use('/api/run-pipeline-return-markdown', (req, res, next) => {
               if (req.method !== 'POST') return next();
-              let body = '';
-              req.on('data', (chunk) => { body += chunk; });
-              req.on('end', () => {
-                const sendJson = (status: number, payload: object) => {
-                  res.statusCode = status;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify(payload));
-                };
-                (async () => {
-                  try {
-                    const parsed = JSON.parse(body || '{}') as {
-                      provider?: string;
-                      audience?: string;
-                      style?: string;
-                      length?: string;
-                      engine?: string;
-                      keyword?: string;
-                      rawText?: string;
-                      translate?: boolean;
-                      wechatAppId?: string;
-                      wechatAppSecret?: string;
-                      notionApiKey?: string;
-                      notionDatabaseId?: string;
-                    };
-                    const { runPipeline } = await import('./services/pipeline');
-                    const result = await runPipeline({
-                      provider: parsed.provider === 'OpenAI' ? 'OpenAI' : 'Gemini',
-                      audience: parsed.audience,
-                      style: parsed.style,
-                      length: parsed.length,
-                      engine: parsed.engine === 'Exa' ? 'Exa' : 'Tavily',
-                      keyword: parsed.keyword,
-                      rawText: parsed.rawText,
-                      translate: parsed.translate === true,
-                      wechatAppId: parsed.wechatAppId,
-                      wechatAppSecret: parsed.wechatAppSecret,
-                      notionApiKey: parsed.notionApiKey,
-                      notionDatabaseId: parsed.notionDatabaseId,
-                      returnContent: true,
-                    });
-                    if (result.success && result.content !== undefined) {
-                      res.statusCode = 200;
-                      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-                      res.end(result.content);
-                    } else {
-                      sendJson(result.success ? 200 : 400, { success: result.success, message: result.message });
-                    }
-                  } catch (err: any) {
-                    console.error('[run-pipeline-return-markdown]', err);
-                    sendJson(500, {
-                      success: false,
-                      message: err?.message || '流程执行失败',
-                    });
-                  }
-                })();
-              });
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                success: false,
+                message: '接口 /api/run-pipeline-return-markdown 已停用,请改用 /api/run-pipeline-return-content 或 /api/run-pipeline',
+              }));
             });
 
             // POST 将原始 Markdown 文章上传到指定 Notion 数据库

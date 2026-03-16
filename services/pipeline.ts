@@ -23,8 +23,77 @@ const AUDIENCE_VALUES = [
   '产品经理, 背景知识一般, 关注点优先级: 市场与生态 > 行业应用, 语气专业冷静, 行话密度中',
   '券商分析师, 背景知识专业, 关注点优先级: 市场与生态 > 合规与风险, 语气专业冷静, 行话密度中',
 ];
-const STYLE_VALUES = ['科普+故事开场', '深度解析', '案例研究', '反转体(The Truth-Slapper)', '拆解体(The Dissector)', '破壳体(Shell-Breaker)', '半佛体(Banfo)'];
+const STYLE_VALUES = [
+  '科普+故事开场',
+  '深度解析',
+  '案例研究',
+  '反转体(The Truth-Slapper)',
+  '拆解体(The Dissector)',
+  '破壳体(Shell-Breaker)',
+  '半佛体(Banfo)',
+];
 const LENGTH_VALUES = ['500-800', '≤500', '800-1200', '1600-2200'];
+
+/** 对外更易填写的简短枚举值 → 内部长字符串的映射,保证请求逻辑不变 */
+const AUDIENCE_SHORT_MAP: Record<string, string> = {
+  general: AUDIENCE_VALUES[0],
+  engineer: AUDIENCE_VALUES[1],
+  k12: AUDIENCE_VALUES[2],
+  pm: AUDIENCE_VALUES[3],
+  analyst: AUDIENCE_VALUES[4],
+};
+
+const STYLE_SHORT_MAP: Record<string, string> = {
+  story: '科普+故事开场',
+  deepdive: '深度解析',
+  case: '案例研究',
+  truth: '反转体(The Truth-Slapper)',
+  dissect: '拆解体(The Dissector)',
+  shell: '破壳体(Shell-Breaker)',
+  banfo: '半佛体(Banfo)',
+};
+
+const LENGTH_SHORT_MAP: Record<string, string> = {
+  short: '≤500',
+  medium: '500-800',
+  long: '800-1200',
+  xlong: '1600-2200',
+};
+
+function normalizeAudience(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+  // 原有长字符串(或与之完全一致)依然直接支持
+  if (AUDIENCE_VALUES.includes(trimmed)) {
+    return trimmed;
+  }
+  // 允许使用短 key(大小写不敏感)
+  const lower = trimmed.toLowerCase();
+  return AUDIENCE_SHORT_MAP[lower] ?? undefined;
+}
+
+function normalizeStyle(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+  if (STYLE_VALUES.includes(trimmed)) {
+    return trimmed;
+  }
+  const lower = trimmed.toLowerCase();
+  return STYLE_SHORT_MAP[lower] ?? undefined;
+}
+
+function normalizeLength(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+  if (LENGTH_VALUES.includes(trimmed)) {
+    return trimmed;
+  }
+  const lower = trimmed.toLowerCase();
+  return LENGTH_SHORT_MAP[lower] ?? undefined;
+}
 
 function getTimestamp(): string {
   const d = new Date();
@@ -89,15 +158,9 @@ export interface RunPipelineResult {
  */
 export async function runPipeline(params: RunPipelineParams): Promise<RunPipelineResult> {
   const provider = params.provider ?? 'Gemini';
-  const audience = params.audience?.trim() && AUDIENCE_VALUES.includes(params.audience.trim())
-    ? params.audience.trim()
-    : AUDIENCE_VALUES[0];
-  const style = params.style?.trim() && STYLE_VALUES.includes(params.style.trim())
-    ? params.style.trim()
-    : STYLE_VALUES[0];
-  const length = params.length?.trim() && LENGTH_VALUES.includes(params.length.trim())
-    ? params.length.trim()
-    : LENGTH_VALUES[0];
+  const audience = normalizeAudience(params.audience) ?? AUDIENCE_VALUES[0];
+  const style = normalizeStyle(params.style) ?? STYLE_VALUES[0];
+  const length = normalizeLength(params.length) ?? LENGTH_VALUES[0];
   const engine = params.engine ?? 'Tavily';
 
   const rawTextInput = params.rawText?.trim();

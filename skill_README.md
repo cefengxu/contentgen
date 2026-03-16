@@ -1,36 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+## Skill 使用说明(提供给 LLM / Claude)
 
-This contains everything you need to run your app locally.
+> 目标:让模型在调用本服务时,能稳定、可预期地完成「抓取→写作→保存/发布」流水线,同时避免破坏现有工程。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9pLjtS3XLIw
+### 1. 能力总览
 
-## Run Locally
+本 Skill 封装了一个「内容生成流水线」,围绕以下 3 个核心 HTTP 接口:
 
-**Prerequisites:**  Node.js
+- **POST `/api/run-pipeline`**  
+  用于**实际落地写作任务**。执行与前端一致的完整流程:  
+  **设置模型/读者/风格/长度 → 使用 keyword 检索 或 使用 rawText → 生成文章 → 保存 Markdown → 可选发布到微信/推送 Notion**。
 
+- **POST `/api/run-pipeline-return-content`**  
+  与 `run-pipeline` 参数一致,但**额外在 JSON 中返回 `content`(完整 Markdown 字符串)**,适合后续在外部系统继续处理或二次改写。
 
-1. Install dependencies:
-   `npm install`
-2. 在项目根目录创建 [.env.local](.env.local),配置兼容 OpenAI 的大模型服务:
-   - `OPENAI_API_URL`:API 完整地址(含 `/v1/chat/completions`,如 `https://api.openai.com/v1/chat/completions` 或第三方兼容地址)
-   - `OPENAI_API_KEY`:API Key
-   - (可选)`OPENAI_MODEL`:模型名,默认 `gpt-3.5-turbo`
-3. Run the app:
-   `npm run dev`
+- **POST `/api/upload-markdown-to-notion`**  
+  输入**已经准备好的 Markdown 原文**,直接推送到指定 Notion 数据库,**不再执行检索/写作**。
 
-## 对外服务接口：一键执行生文并发布
+> 注意: `/api/run-pipeline-return-markdown` 接口已在工程中屏蔽,**不要再调用**。如需获取正文,统一使用 `/api/run-pipeline-return-content`。
 
-系统主要提供以下对外 HTTP 接口:
-
-- **POST `/api/run-pipeline`**: 执行与前端一致的完整流程：**设置模型/读者/风格/长度 → 检索或原文本 → 生成文章 → 保存 Markdown → 可选发布到微信/推送 Notion**。
-- **POST `/api/run-pipeline-return-content`**: 参数与 `run-pipeline` 相同,执行生成流程并在 JSON 中额外返回 `content` 字段(完整 Markdown 字符串),便于后续程序化处理。
-- **POST `/api/upload-markdown-to-notion`**: 输入原始 Markdown 文章与 Notion 配置,直接将文章上传到指定 Notion 数据库。
-
-### 请求
+### 2. 通用请求格式
 
 - **Method:** `POST`
 - **Content-Type:** `application/json`
@@ -97,45 +86,47 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 | Tavily (推荐) | `Tavily` |
 | Exa (神经搜索) | `Exa` |
 
-### 响应
+### 3. 响应结构约定
 
-- **200 / 400：** `{ success: boolean, message: string, filename?: string, title?: string, publishResult?: { success, message, stdout?, stderr? } }`
-- **500：** 服务器错误,同上结构,`success: false`。
+- 通用返回结构:
+  - **200 / 400:**  
+    `{ success: boolean, message: string, filename?: string, title?: string, publishResult?: { success, message, stdout?, stderr? } }`
+  - **500:** 服务器错误,同上结构,`success: false`。
 
-### 返回文章内容接口（便于后续处理）
+- `POST /api/run-pipeline-return-content` 额外约定:
+  - 成功时:  
+    `{ success: true, message: string, filename?: string, title?: string, content?: string, publishResult?, notionResult? }`
+  - 其中 `content` 为完整 Markdown 正文,JSON 中换行以 `\n` 形式出现,需要在调用侧做一次 JSON 解析。
 
-**POST `/api/run-pipeline-return-content`** 与 `run-pipeline` 使用相同 Body 参数,执行步骤 1～3（检索/原文本/翻译 → 生成文章 → 保存为 `medias/docs/xxx.md`）,并在响应 JSON 中返回 `content`（完整 Markdown 字符串）。若传入微信/Notion 参数,仍会执行发布/推送。
+- `POST /api/upload-markdown-to-notion`:
+  - Body: `content`(必填,Markdown 字符串)、`notionApiKey`、`notionDatabaseId`(必填)。
+  - 返回结构与 Notion 创建页面结果一致:`success`, `message`, `pageId?`, `url?`。
 
-- **响应（成功时）：** `{ success: true, message: string, filename?: string, title?: string, content?: string, publishResult?, notionResult? }`  
-  - JSON 中 `content` 的换行会以 `\n` 转义形式出现；用各语言 **JSON 解析**（如 `JSON.parse`）后得到的字符串即带真实换行的 Markdown,可正常写文件或渲染。
-
-**POST `/api/upload-markdown-to-notion`** 输入原始 Markdown 文章,上传到指定 Notion 数据库。Body：`content`（必填,Markdown 字符串）、`notionApiKey`、`notionDatabaseId`（必填）。标题从 front-matter 的 `title` 解析,若无则用 "article"；响应格式同 Notion 创建结果（`success`, `message`, `pageId?`, `url?`）。
-
-### 示例
+### 4. 推荐调用模式示例(给 LLM 参考)
 
 ```bash
 # 网络搜索 + 生成文章（不发布）
-curl -X POST http://localhost:3000/api/run-pipeline \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{"keyword":"AI 大模型趋势","provider":"Gemini","engine":"Tavily","audience":"general","style":"story","length":"medium"}'
 
 # 原文本生成文章并发布到微信
-curl -X POST http://localhost:3000/api/run-pipeline \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{"rawText":"这里是原始素材内容...","wechatAppId":"wx...","wechatAppSecret":"..."}'
 
 # 翻译原文并推送到 Notion（风格固定为农夫山泉,忽略 audience/style/length）
-curl -X POST http://localhost:3000/api/run-pipeline \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{
     "rawText": "Here is the original English article...",
     "translate": true,
     "provider": "Gemini",
     "notionApiKey": "ntn_xxx",
-    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
+    "notionDatabaseId": "ntn_database_id"
   }'
 
-curl -X POST http://localhost:3000/api/run-pipeline \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{
     "provider": "Gemini",
@@ -149,7 +140,7 @@ curl -X POST http://localhost:3000/api/run-pipeline \
     "wechatAppSecret": "your_app_secret",
   }'
 
-curl -X POST http://localhost:3000/api/run-pipeline \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline \
   -H "Content-Type: application/json" \
   -d '{
     "provider": "Gemini",
@@ -160,14 +151,14 @@ curl -X POST http://localhost:3000/api/run-pipeline \
     "keyword": "AI 大模型趋势",
     "rawText": null,
     "notionApiKey": "ntn_xxx",
-    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
+    "notionDatabaseId": "ntn_database_id"
   }'
 
-curl -X POST http://localhost:3000/api/run-pipeline-return-content \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline-return-content \
   -H "Content-Type: application/json" \
   -d '{"keyword":"AI 大模型趋势","provider":"Gemini","engine":"Tavily","audience":"general","style":"story","length":"medium"}'
 
-curl -X POST http://localhost:3000/api/run-pipeline-return-content \
+curl -X POST http://18.222.221.196:3738/api/run-pipeline-return-content \
   -H "Content-Type: application/json" \
   -d '{    
     "rawText": "Here is the original English article...",
@@ -176,11 +167,11 @@ curl -X POST http://localhost:3000/api/run-pipeline-return-content \
   }'
 
 # 将原始 Markdown 上传到指定 Notion 数据库
-curl -X POST http://localhost:3000/api/upload-markdown-to-notion \
+curl -X POST http://18.222.221.196:3738/api/upload-markdown-to-notion \
   -H "Content-Type: application/json" \
   -d '{
     "content": "---\ntitle: 我的文章标题\n---\n\n这里是正文 Markdown...",
     "notionApiKey": "ntn_xxx",
-    "notionDatabaseId": "2feb6327-d4f6-800f-9d49-e68a6280a44c"
+    "notionDatabaseId": "ntn_database_id"
   }'
 ```
