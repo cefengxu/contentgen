@@ -23,13 +23,14 @@ const STYLE_PRESETS = [
   { label: '拆解体(The Dissector)', value: '拆解体(The Dissector)' },
   { label: '破壳体(Shell-Breaker)', value: '破壳体(Shell-Breaker)' },
   { label: '半佛体 (Banfo)', value: '半佛体(Banfo)' },
+  { label: 'stopslop', value: 'stopslop' },
 ];
 
 const LENGTH_PRESETS = [
   { label: '500-800 字 (默认)', value: '500-800' },
   { label: '≤ 500 字 (精简)', value: '≤500' },
   { label: '800-1200 字 (深度)', value: '800-1200' },
-  { label: '1600-2200 字 (深度)', value: '1600-2200' },
+  { label: '2000-3000 字 (深度)', value: '2000-3000' },
 ];
 
 const ENGINE_PRESETS: { label: string; value: SearchEngine }[] = [

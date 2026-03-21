@@ -31,8 +31,9 @@ const STYLE_VALUES = [
   '拆解体(The Dissector)',
   '破壳体(Shell-Breaker)',
   '半佛体(Banfo)',
+  'stopslop',
 ];
-const LENGTH_VALUES = ['500-800', '≤500', '800-1200', '1600-2200'];
+const LENGTH_VALUES = ['500-800', '≤500', '800-1200', '2000-3000'];
 
 /** 对外更易填写的简短枚举值 → 内部长字符串的映射,保证请求逻辑不变 */
 const AUDIENCE_SHORT_MAP: Record<string, string> = {
@@ -51,13 +52,14 @@ const STYLE_SHORT_MAP: Record<string, string> = {
   dissect: '拆解体(The Dissector)',
   shell: '破壳体(Shell-Breaker)',
   banfo: '半佛体(Banfo)',
+  stopslop: 'stopslop',
 };
 
 const LENGTH_SHORT_MAP: Record<string, string> = {
   short: '≤500',
   medium: '500-800',
   long: '800-1200',
-  xlong: '1600-2200',
+  xlong: '2000-3000',
 };
 
 function normalizeAudience(input: string | undefined): string | undefined {

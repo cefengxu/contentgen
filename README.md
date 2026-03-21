@@ -80,6 +80,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 | 拆解体(The Dissector) | `dissect` | `拆解体(The Dissector)` |
 | 破壳体(Shell-Breaker) | `shell` | `破壳体(Shell-Breaker)` |
 | 半佛体 (Banfo) | `banfo` | `半佛体(Banfo)` |
+| stopslop | `stopslop` | `stopslop` |
 
 **length 可选值（传 value, 推荐使用短 key）：**
 
@@ -88,7 +89,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 | 500-800 字 (默认) | `medium` | `500-800` |
 | ≤ 500 字 (精简) | `short` | `≤500` |
 | 800-1200 字 (深度) | `long` | `800-1200` |
-| 1600-2200 字 (深度) | `xlong` | `1600-2200` |
+| 2000-3000 字 (深度) | `xlong` | `2000-3000` |
 
 **engine 可选值（传 value）：**
 
