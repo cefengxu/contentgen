@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { GenerationOptions } from '../types';
-import { buildArticleSystemInstruction } from './articleSystemInstruction';
+import { buildArticleSystemInstruction, getArticleMaxOutputTokens } from './articleSystemInstruction';
 import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
 /**
@@ -84,7 +84,10 @@ export const parseDocument = async (pdfUrl: string, prompt: string): Promise<str
  * 多轮对话补全(非流式、无思考模式)
  * 将 system/user/assistant 消息转为 Gemini 的 systemInstruction + contents 调用
  */
-export const chatCompletions = async (messages: ChatMessage[]): Promise<string> => {
+export const chatCompletions = async (
+  messages: ChatMessage[],
+  generation?: { maxOutputTokens?: number }
+): Promise<string> => {
   const { apiKey, model } = getGeminiConfig();
   const ai = new GoogleGenAI({ apiKey });
 
@@ -101,9 +104,12 @@ export const chatCompletions = async (messages: ChatMessage[]): Promise<string> 
     }
   }
 
-  const config: { systemInstruction?: string } = {};
+  const config: { systemInstruction?: string; maxOutputTokens?: number } = {};
   if (systemParts.length > 0) {
     config.systemInstruction = systemParts.join('\n\n');
+  }
+  if (generation?.maxOutputTokens != null) {
+    config.maxOutputTokens = generation.maxOutputTokens;
   }
 
   const response = await ai.models.generateContent({
@@ -124,13 +130,13 @@ export const generateArticle = async (
   options: GenerationOptions
 ): Promise<string> => {
   const systemInstruction = buildArticleSystemInstruction(rawData, options);
-  const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文。`;
+  const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文;**汉字总字数(含标点)须符合系统指令中的 {{文章长度}}**,长稿档位不得写成短文。`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemInstruction },
     { role: 'user', content: userContent },
   ];
-  return chatCompletions(messages);
+  return chatCompletions(messages, { maxOutputTokens: getArticleMaxOutputTokens(options.length) });
 };
 
 /**

@@ -1,5 +1,5 @@
 import { GenerationOptions } from '../types';
-import { buildArticleSystemInstruction } from './articleSystemInstruction';
+import { buildArticleSystemInstruction, getArticleMaxOutputTokens } from './articleSystemInstruction';
 import { buildTranslateSystemInstruction } from './translateSystemInstruction';
 
 /** 从环境变量读取的 OpenAI 兼容 API 配置（OPENAI_API_URL 为完整地址,无需拼接路径） */
@@ -23,6 +23,7 @@ interface ChatCompletionRequest {
   model: string;
   messages: ChatMessage[];
   stream?: boolean;
+  max_tokens?: number;
 }
 
 /** 非流式响应 */
@@ -34,9 +35,13 @@ interface ChatCompletionResponse {
   error?: { message: string; code?: string };
 }
 
-const chatCompletions = async (messages: ChatMessage[], stream = false): Promise<string> => {
+const chatCompletions = async (
+  messages: ChatMessage[],
+  stream = false,
+  extra?: { max_tokens?: number }
+): Promise<string> => {
   const { apiUrl, apiKey, model } = getApiConfig();
-  const body: ChatCompletionRequest = { model, messages, stream };
+  const body: ChatCompletionRequest = { model, messages, stream, ...extra };
 
   const res = await fetch(apiUrl, {
     method: 'POST',
@@ -67,13 +72,13 @@ export const generateArticle = async (
   options: GenerationOptions
 ): Promise<string> => {
   const systemInstruction = buildArticleSystemInstruction(rawData, options);
-  const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文。`;
+  const userContent = `话题关键词:${keyword}。请严格按风格 {{文章风格}} 和读者人群 {{读者人群}} 生成 Markdown 正文;**汉字总字数(含标点)须符合系统指令中的 {{文章长度}}**,长稿档位不得写成短文。`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemInstruction },
     { role: 'user', content: userContent },
   ];
-  return chatCompletions(messages);
+  return chatCompletions(messages, false, { max_tokens: getArticleMaxOutputTokens(options.length) });
 };
 
 /**

@@ -732,9 +732,76 @@ function getStyleConstraint(style: string | undefined): string {
   return STYLE_CONSTRAINTS[key] ?? STYLE_CONSTRAINTS[DEFAULT_STYLE_KEY];
 }
 
+type LengthTier = 'compact' | 'standard' | 'deep' | 'longform';
+
+function resolveLengthTier(length: string): LengthTier {
+  const t = length.trim();
+  if (t === '≤500' || t === '<=500') return 'compact';
+  if (t === '800-1200') return 'deep';
+  if (t === '2000-3000') return 'longform';
+  return 'standard';
+}
+
+/** 按目标字数分档的可读性/段落规则(避免短稿规则与 2000-3000 等长稿目标冲突) */
+function buildLengthAdaptation(length: string): {
+  variableDetail: string;
+  readabilityRules: string;
+  themeBlocksBullet: string;
+} {
+  const tier = resolveLengthTier(length);
+  if (tier === 'compact') {
+    return {
+      variableDetail: `  - 目标:约 ≤500 字(汉字计,含标点)
+  - 段落 3-5 段;单段约 ≤70 字;句长 8-20 字为主,可穿插更短句`,
+      readabilityRules: `- 全文字数严格以 {{文章长度}} 为准。
+- 段落 3-5 段;单段约 ≤70 字;句长 8-20 字为主。`,
+      themeBlocksBullet: '将内容**归并为 1-3 个主题块**',
+    };
+  }
+  if (tier === 'deep') {
+    return {
+      variableDetail: `  - 目标:约 800-1200 字(汉字计,含标点)
+  - 段落 6-12 段;单段约 90-160 字;句长 8-22 字为主,每 1-2 段插入一句 7-12 字短句`,
+      readabilityRules: `- 全文字数严格以 {{文章长度}} 为准。
+- 段落 6-12 段;单段约 90-160 字;句长 8-22 字为主;**每 1-2 段插入 1 句 7-12 字短句**。`,
+      themeBlocksBullet: '将内容**归并为 2-4 个主题块**',
+    };
+  }
+  if (tier === 'longform') {
+    return {
+      variableDetail: `  - 目标:**2000-3000 字**(汉字计,含标点)—**硬指标**,成稿须落在该区间内(允许略浮动但不得写成短稿)
+  - **长稿专用**:段落 **12-22 段**;单段约 **120-240 字**(少数说明段可更长);**禁止**沿用短稿尺度(如全篇仅 4-8 段、或每段 ≤80 字)
+  - 句长仍以 8-24 字为主节奏;每 2-3 段可插入一句 7-12 字短句
+  - 材料若偏少:在同一主题下按**时间线/多方引述/参数与边界**分条展开,**仅复述抓取内容**,用结构拉长—**禁止**臆造事实`,
+      readabilityRules: `- **【长稿—优先于短稿习惯】** 汉字总数(含标点)**必须达到 2000-3000 字区间**;不得以“信息有限”为由提前收尾成短文。
+- 段落 **12-22 段**;单段 **约 120-240 字**。**严禁**全篇仅 4-8 段或每段 ≤80 字(该规则仅适用于 ≤800 字档位)。
+- 抓取信息不足时:增加**合法展开**—分角度复述已给事实、并列多源条目、细化边界与口径;**不新增抓取之外的事实**。
+- 句长 8-24 字为主;**每 2-3 段**插入 1 句 7-12 字短句调节节奏。`,
+      themeBlocksBullet: '将内容**归并为 3-5 个主题块**(长稿允许多段展开;每块仍须有抓取来源支撑)',
+    };
+  }
+  return {
+    variableDetail: `  - 期望字数范围或上限(如:"500-800"、"2000-3000" 或 "≤700")。若未提供,默认 500-800 字
+  - 段落数与句长应随字数自适应:4-8 段为宜;句长 8-22 字为主,每 1-2 段插入一句 7-12 字短句`,
+    readabilityRules: `- 全文字数严格以 {{文章长度}} 为准;若未提供,默认约 500-800 字。
+- 段落 4-8 段;每段 ≤80 字;句长 8-22 字为主;**每 1-2 段插入 1 句 7-12 字短句**。`,
+    themeBlocksBullet: '将内容**归并为 1-3 个主题块**',
+  };
+}
+
+/** 供 OpenAI/Gemini 设置输出上限,避免长稿在默认 token 上限处被截断 */
+export function getArticleMaxOutputTokens(length: string | undefined): number {
+  const t = (length ?? '').trim();
+  if (t === '2000-3000') return 8192;
+  if (t === '800-1200') return 6144;
+  if (t === '≤500' || t === '<=500') return 2048;
+  return 4096;
+}
+
 /** 与 PE.txt 完全一致的 system 指令模板,供 OpenAI / Gemini 等 LLM 共用 */
 export function buildArticleSystemInstruction(rawData: string, options: GenerationOptions): string {
   const styleConstraint = getStyleConstraint(options.style);
+  const len = buildLengthAdaptation(options.length);
 
   return `## 系统指令
 你是严格执行指令的自动化内容整合代理。
@@ -749,14 +816,13 @@ export function buildArticleSystemInstruction(rawData: string, options: Generati
   - 行话密度:低 / 中 / 高(当为"低"时,术语需在首次出现处给出简短释义,释义必须来自抓取内容)
   - 例子与对比:仅当抓取内容出现明确对比与示例时方可使用,否则禁用
 - {{文章长度}}:${options.length}
-  - 期望字数范围或上限(如:"500-800"、"2000-3000" 或 "≤700")。若未提供,默认 500-800 字
-  - 段落数与句长应随字数自适应:4-8 段为宜;句长 8-22 字为主,每 1-2 段插入一句 7-12 字短句
+${len.variableDetail}
 
 ## 风格选择(运行时传入)
 - {{文章风格}}:${options.style}
   [科普+故事开场|深度解析|案例研究|反转体(The Truth-Slapper)|拆解体(The Dissector)|破壳体(Shell-Breaker)|半佛体(Banfo)|stopslop]
 - 根据 {{读者人群}} 自动调整:术语密度、解释深度、例子与语气。
-- 全文字数遵循 {{文章长度}}(默认 500-800 字),段落与句长自适应。
+- 全文字数**严格**以本条 {{文章长度}} 与上方「字数/段落」细则为准;勿套用其他档位的默认字数。
 - 默认风格:**科普 + 故事开场**。若提供 {{文章风格}},则以该风格为准;如该风格不适配"故事开场",则严格遵循该风格模板。
 
 
@@ -788,7 +854,7 @@ export function buildArticleSystemInstruction(rawData: string, options: Generati
    - 可用**非事实润滑表达**承接至正文(如"据公开资料所述""在此背景下"),仅作过渡,不引入新信息。
 
 2) **核心内容(信息合并)**
-   - 将内容**归并为 1-3 个主题块**(如:技术特性;应用与行业变化;合规与风险;市场与生态)。**每主题块**的事实需来自 **≥1 权威来源**,优先双源交叉。
+   - ${len.themeBlocksBullet}(如:技术特性;应用与行业变化;合规与风险;市场与生态)。**每主题块**的事实需来自 **≥1 权威来源**,优先双源交叉。
    - **主题块写作顺序(固定)**:  
      **事实 → 含义(仅复述来源中的指向,不外延) → 边界(仅据来源披露的限制/口径)**;禁止清单式流水账。
    - **主题块微模板(建议采用)**  
@@ -811,8 +877,7 @@ export function buildArticleSystemInstruction(rawData: string, options: Generati
 ${styleConstraint}
 
 ## 可读性规则
-- 全文字数遵循 {{文章长度}};若未提供,默认 500-800 字。
-- 段落 4-8 段;每段 ≤80 字;句长 8-22 字为主;**每 1-2 段插入 1 句 7-12 字短句**。
+${len.readabilityRules}
 - 动词优先(如:实现、对齐、压缩、替代、延展、收束);减少空洞形容词。
 - **禁止词清单**(无确证时):由此可见、可以说、引发热议、史诗级、再度引爆、不得不说、或将、有望、掀起风暴、全民、颠覆性。
 - **非事实润滑表达计数口径**:按**句子数**估算占比 ≤10%;与事实约束冲突时,**以事实优先**。
