@@ -7,8 +7,7 @@ type ArticleStyleKey =
   | '反转体(The Truth-Slapper)'
   | '拆解体(The Dissector)'
   | '破壳体(Shell-Breaker)'
-  | '半佛体(Banfo)'
-  | 'stopslop';
+  | '半佛体(Banfo)';
 
 /** 默认风格 key,未匹配到或未指定时使用 */
 const DEFAULT_STYLE_KEY: ArticleStyleKey = '科普+故事开场';
@@ -338,13 +337,20 @@ const STYLE_BANFO = `
 - 结尾必须是一句收束,无废话,直接结束输出。
 `.trim();
 
-/** stopslop：具体约束由你在此常量内自行维护 */
-const STYLE_STOP_SLOP = `
-### 文章风格: stopslop
+/**
+ * 全局成稿自检（Stop-slop）：非「文章风格」,而是定稿前的输出质量过滤器。
+ * 由 buildArticleSystemInstruction 始终注入;与所选风格并行,在输出前内心执行一遍,不单独可选。
+ */
+const ARTICLE_QUALITY_SELF_CHECK = `
+## 成稿自检（Stop-slop 输出质量过滤器）
+
+**定位**: 本节**不是**文章风格模板,而是你写完正文前必须过的一层**自检脚本**:在不扭曲抓取事实、不删减必要信息的前提下,删掉 AI 腔、套路句式和含混表述。**禁止**在最终输出中写出自检步骤、评分表或「修改说明」,只输出润色后的 Markdown 正文。
+
+以下为英文列举的常见套路;请**对中文正文做类比**(拖腔开场、二元对立转折、元叙事、模糊断言、滥用「其实/非常/无疑」、被动甩锅句等),落到**具体主语、具体事实**。
 
 ## Stop-slop Rules
 
-1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, and all adverbs. references belown: 
+1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, and all adverbs. See below: 
 
 ### Throat-Clearing Openers
 
@@ -474,7 +480,7 @@ Sentences that announce importance without naming the specific thing. Kill these
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
 
 
-2. **Break formulaic structures.** Avoid binary contrasts, negative listings, dramatic fragmentation, rhetorical setups, false agency. references belown:
+2. **Break formulaic structures.** Avoid binary contrasts, negative listings, dramatic fragmentation, rhetorical setups, false agency. See below:
 
 ### Binary Contrasts
 
@@ -607,7 +613,7 @@ Wh- openers become a crutch. "What makes this hard is..." becomes "The constrain
 | Pattern | Problem |
 |---------|---------|
 | Lazy extremes (every, always, never, everyone, everybody, nobody) | False authority. Use specifics instead of sweeping claims. |
-| All adverbs (-ly words, "really," "just," "literally," "genuinely," "honestly," "simply," "actually") | Empty emphasis. See phrases.md for full list. |
+| All adverbs (-ly words, "really," "just," "literally," "genuinely," "honestly," "simply," "actually") | Empty emphasis. See Adverbs section above; apply same idea to Chinese fillers. |
 
 3. **Use active voice.** Every sentence needs a human subject doing something. No passive constructions. No inanimate objects performing human actions ("the complaint becomes a fix").
 
@@ -723,7 +729,6 @@ const STYLE_CONSTRAINTS: Record<ArticleStyleKey, string> = {
   '拆解体(The Dissector)': STYLE_DISSECTOR,
   '破壳体(Shell-Breaker)': STYLE_SHELL_BREAKER,
   '半佛体(Banfo)': STYLE_BANFO,
-  'stopslop': STYLE_STOP_SLOP,
 };
 
 /** 根据用户选择的文章风格获取对应的 Markdown 约束块 */
@@ -875,6 +880,8 @@ ${styleConstraint}
 - **文本加粗 (Bold):** 仅对“核心工具名”、“关键功能插件”或“核心数值指标”进行加粗,严禁大段加粗。
 - **层级标题 (Headings):** 全文仅使用一个 【###】 三级标题作为中段视觉锚点,标题字数控制在 12 字以内,动作导向。
 - **间距控制:** 段落之间保留一个空行,确保手机端阅读不拥挤。
+
+${ARTICLE_QUALITY_SELF_CHECK}
 
 ## 输出要求
 1. **仅输出 Markdown 正文内容**

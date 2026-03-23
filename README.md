@@ -80,7 +80,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U5-RO_6hWdSZfcTVjNZ_u9
 | 拆解体(The Dissector) | `dissect` | `拆解体(The Dissector)` |
 | 破壳体(Shell-Breaker) | `shell` | `破壳体(Shell-Breaker)` |
 | 半佛体 (Banfo) | `banfo` | `半佛体(Banfo)` |
-| stopslop | `stopslop` | `stopslop` |
+
+成稿质量：**Stop-slop 输出自检**已内置在 `services/articleSystemInstruction.ts` 中,随每篇文章生成自动注入,**无需**也不应再传 `style=stopslop`。若 API 仍传 `stopslop`,将视为默认风格并同样附带自检块。
 
 **length 可选值（传 value, 推荐使用短 key）：**
 

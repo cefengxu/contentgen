@@ -23,7 +23,6 @@ const STYLE_PRESETS = [
   { label: '拆解体(The Dissector)', value: '拆解体(The Dissector)' },
   { label: '破壳体(Shell-Breaker)', value: '破壳体(Shell-Breaker)' },
   { label: '半佛体 (Banfo)', value: '半佛体(Banfo)' },
-  { label: 'stopslop', value: 'stopslop' },
 ];
 
 const LENGTH_PRESETS = [

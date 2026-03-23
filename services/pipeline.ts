@@ -31,7 +31,6 @@ const STYLE_VALUES = [
   '拆解体(The Dissector)',
   '破壳体(Shell-Breaker)',
   '半佛体(Banfo)',
-  'stopslop',
 ];
 const LENGTH_VALUES = ['500-800', '≤500', '800-1200', '2000-3000'];
 
@@ -52,7 +51,6 @@ const STYLE_SHORT_MAP: Record<string, string> = {
   dissect: '拆解体(The Dissector)',
   shell: '破壳体(Shell-Breaker)',
   banfo: '半佛体(Banfo)',
-  stopslop: 'stopslop',
 };
 
 const LENGTH_SHORT_MAP: Record<string, string> = {
@@ -79,10 +77,12 @@ function normalizeStyle(input: string | undefined): string | undefined {
   if (!input) return undefined;
   const trimmed = input.trim();
   if (!trimmed) return undefined;
+  const lower = trimmed.toLowerCase();
+  // 历史参数:stopslop 已并入系统指令全局「成稿自检」,不再作为风格;按默认风格处理
+  if (lower === 'stopslop' || lower === 'stop-slop') return undefined;
   if (STYLE_VALUES.includes(trimmed)) {
     return trimmed;
   }
-  const lower = trimmed.toLowerCase();
   return STYLE_SHORT_MAP[lower] ?? undefined;
 }
 

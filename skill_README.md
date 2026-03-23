@@ -69,7 +69,8 @@
 | 拆解体(The Dissector) | `dissect` | `拆解体(The Dissector)` |
 | 破壳体(Shell-Breaker) | `shell` | `破壳体(Shell-Breaker)` |
 | 半佛体 (Banfo) | `banfo` | `半佛体(Banfo)` |
-| stopslop | `stopslop` | `stopslop` |
+
+成稿质量：Stop-slop 自检已全局注入文章系统指令,勿再使用 `style=stopslop`（传入将按默认风格处理）。
 
 **length 可选值（传 value, 推荐使用短 key）：**
 
