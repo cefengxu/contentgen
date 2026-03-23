@@ -17,7 +17,7 @@ async function fetchFromTavily(query: string): Promise<{ text: string; sources: 
       query,
       include_answer: 'basic',
       search_depth: 'basic',
-      max_results: 10,
+      max_results: 15,
       time_range: 'month',
     }),
   });
@@ -55,7 +55,7 @@ async function fetchFromExa(query: string): Promise<{ text: string; sources: Sea
     },
     body: JSON.stringify({
       query,
-      numResults: 10,
+      numResults: 15,
       type: 'auto',
       contents: {
         highlights: {
